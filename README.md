@@ -19,7 +19,6 @@ Where TEMPLATE may contain the following placeholders:
 
 - `%q`: Placeholder for quoted and safely escaped JSON string.
 - `%s`: Placeholder for JSON values other than string.
-- `%%`: Placeholder for a single `%` (i.e. escaped `%`).
 
 And [VALUE]... are the values for the placeholders.
 
