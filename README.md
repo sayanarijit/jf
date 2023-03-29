@@ -9,6 +9,14 @@ jf "jf: %q" "JSON Format"
 However, unlike `jo`, where you build the JSON object by nesting `jo` outputs,
 `jf` works similar to `printf`, i.e. it expects the template in [YAML][yaml] format as the first argument, and then the values for the placeholders as subsequent arguments.
 
+## Install
+
+```bash
+cargo install jf
+```
+
+Or [download binary from the latest release][bins].
+
 ## Usage
 
 ```bash
@@ -48,3 +56,4 @@ jf "{a: {b: %s, c: {d: %s, f: %s}, d: {e: [%s, %q]}}, b: {e: [%q]}}" 0 1 true 2 
 [jo]: https://github.com/jpmens/jo
 [yaml]: https://yaml.org
 [json]: https://json.org
+[bins]: https://github.com/sayanarijit/jf/releases/latest
