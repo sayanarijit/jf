@@ -2,6 +2,13 @@
 name = "jf"
 version = "0.1.0"
 edition = "2021"
+authors = ["Arijit Basu <hi@arijitbasu.in>"]
+description = 'jf "jf: %q" "JSON Format"'
+keywords = ["json", "command-line", "cli"]
+repository = "https://github.com/sayanarijit/jf"
+readme = "README.md"
+license = "MIT"
+autoexamples = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
