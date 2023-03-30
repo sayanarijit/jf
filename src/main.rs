@@ -96,7 +96,7 @@ where
             }
             ('s', Some('%')) => {
                 let Some(arg) = args.next() else {
-                    return Err(format!("placeholder missing value at column {col}").as_str() .into())
+                    return Err(format!("placeholder missing value at column {col}").as_str().into())
                 };
                 val.push_str(&arg);
                 last_char = None;

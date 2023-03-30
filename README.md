@@ -35,11 +35,11 @@ Use `%%` to escape a literal `%` character.
 Example:
 
 ```bash
-jf "hello: %q" "world"
+jf "hello: %q" world
 # jo hello=world
 # {"hello":"world"}
 
-jf "hello: {beautiful: %q}" "world"
+jf "hello: {beautiful: %q}" world
 # jo hello=$(jo beautiful=world)
 # {"hello":{"beautiful":"world"}}
 
