@@ -1,6 +1,6 @@
 # jf
 
-jf "jf: %q" "JSON Format"
+jf %q "JSON Formatted"
 
 [![Crate Status](https://img.shields.io/crates/v/jf.svg)](https://crates.io/crates/jf)
 
