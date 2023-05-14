@@ -107,6 +107,13 @@ where
                     placeholder_name = None;
                     last_char = None;
                 }
+                (ch, Some(')')) => {
+                    return Err(format!(
+                        "invalid named placeholder '%({name}){ch}' at column {col}, use '%({name})q' for quoted strings and '%({name})s' for other values"
+                    )
+                    .as_str()
+                    .into());
+                }
                 (')', _) => {
                     last_char = Some(ch);
                 }
@@ -399,5 +406,14 @@ fn test_invalid_syntax_for_value_of_named_placeholder_error() {
     assert_eq!(
         format(args).unwrap_err().to_string(),
         "jf: invalid syntax for value no. 1, use 'NAME=VALUE' syntax"
+    );
+}
+
+#[test]
+fn test_invalid_named_placeholder_error() {
+    let args = ["%(foo)x"].into_iter().map(Into::into);
+    assert_eq!(
+        format(args.clone()).unwrap_err().to_string(),
+        format!("jf: invalid named placeholder '%(foo)x' at column 6, use '%(foo)q' for quoted strings and '%(foo)s' for other values")
     );
 }
