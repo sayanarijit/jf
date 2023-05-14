@@ -36,6 +36,7 @@ And [VALUE]... [[NAME=]VALUE]... are the values for the placeholders.
 - Pass values for positional placeholders in the same order as in the template.
 - Pass values for named placeholders using `NAME=VALUE` syntax.
 - Do not declare or pass positional placeholders or values after named ones.
+- To get the `jf` version number, use `jf %v`.
 
 Example:
 

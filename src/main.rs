@@ -2,6 +2,7 @@ use serde_json as json;
 use serde_yaml as yaml;
 use std::{collections::HashMap, env, fmt::Display};
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 const USAGE: &str = r#"not enough arguments
 
 USAGE: jf TEMPLATE [VALUE]... [NAME=VALUE]...
@@ -19,6 +20,7 @@ USAGE: jf TEMPLATE [VALUE]... [NAME=VALUE]...
   Pass values for positional placeholders in the same order as in the template.
   Pass values for named placeholders using `NAME=VALUE` syntax.
   Do not declare or pass positional placeholders or values after named ones.
+  To get the `jf` version number, use `jf %v`.
 
 EXAMPLE:
 
@@ -174,6 +176,10 @@ where
                     };
 
                     val.push_str(&arg);
+                    last_char = None;
+                }
+                ('v', Some('%')) => {
+                    val.push_str(&VERSION);
                     last_char = None;
                 }
                 ('(', Some('%')) => {
@@ -416,5 +422,20 @@ fn test_invalid_named_placeholder_error() {
     assert_eq!(
         format(args.clone()).unwrap_err().to_string(),
         format!("jf: invalid named placeholder '%(foo)x' at column 6, use '%(foo)q' for quoted strings and '%(foo)s' for other values")
+    );
+}
+
+#[test]
+fn test_print_version() {
+    let arg = ["jf v%v"].into_iter().map(Into::into);
+    assert_eq!(format(arg).unwrap().to_string(), r#""jf v0.2.2""#);
+
+    let args = ["{foo: %q, bar: %(bar)q, version: %v}", "foo", "bar=bar"]
+        .into_iter()
+        .map(Into::into);
+
+    assert_eq!(
+        format(args).unwrap().to_string(),
+        r#"{"foo":"foo","bar":"bar","version":"0.2.2"}"#
     );
 }
