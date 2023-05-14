@@ -25,16 +25,16 @@ jf TEMPLATE [VALUE]... [NAME=VALUE]...
 
 Where TEMPLATE may contain the following placeholders:
 
-`%q` or `%(NAME)q`: For quoted and safely escaped JSON string.
-`%s` or `%(NAME)s`: For JSON values other than string.
+- `%q` or `%(NAME)q`: For quoted and safely escaped JSON string.
+- `%s` or `%(NAME)s`: For JSON values other than string.
 
-And [VALUE]... are the values for the placeholders.
+And [VALUE]... [[NAME=]VALUE]... are the values for the placeholders.
 
-Use `%s` or `%q` syntax to pass positional values.
-Use `%(NAME)s` or `%(NAME)q` syntax to pass named values.
-Use `%%` to escape a literal `%` character.
-Pass the values for named placeholders using `NAME=VALUE` syntax.
-Do not use positional placeholders after named placeholders.
+- Use `%s` or `%q` syntax to pass positional values.
+- Use `%(NAME)s` or `%(NAME)q` syntax to pass named values.
+- Use `%%` to escape a literal `%` character.
+- Pass the values for named placeholders using `NAME=VALUE` syntax.
+- Do not use positional placeholders after named placeholders.
 
 Example:
 
