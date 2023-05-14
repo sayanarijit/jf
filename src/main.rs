@@ -13,11 +13,12 @@ USAGE: jf TEMPLATE [VALUE]... [NAME=VALUE]...
 
   And [VALUE]... [[NAME=]VALUE]... are the values for the placeholders.
 
-  Use `%s` or `%q` syntax to pass positional values.
-  Use `%(NAME)s` or `%(NAME)q` syntax to pass named values.
+  Use `%s` or `%q` syntax to declare positional placeholders.
+  Use `%(NAME)s` or `%(NAME)q` syntax to declare named placeholders.
   Use `%%` to escape a literal `%` character.
-  Pass the values for named placeholders using `NAME=VALUE` syntax.
-  Do not use positional placeholders after named placeholders.
+  Pass values for positional placeholders in the same order as in the template.
+  Pass values for named placeholders using `NAME=VALUE` syntax.
+  Do not declare or pass positional placeholders or values after named ones.
 
 EXAMPLE:
 
