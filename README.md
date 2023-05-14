@@ -20,17 +20,22 @@ Or [download binary from the latest release][bins].
 ## Usage
 
 ```bash
-jf TEMPLATE [VALUE]...
+jf TEMPLATE [VALUE]... [NAME=VALUE]...
 ```
 
 Where TEMPLATE may contain the following placeholders:
 
-- `%q`: Placeholder for quoted and safely escaped JSON string.
-- `%s`: Placeholder for JSON values other than string.
+- `%q` or `%(NAME)q`: For quoted and safely escaped JSON string.
+- `%s` or `%(NAME)s`: For JSON values other than string.
 
-And [VALUE]... are the values for the placeholders.
+And [VALUE]... [[NAME=]VALUE]... are the values for the placeholders.
 
-Use `%%` to escape a literal `%` character.
+- Use `%s` or `%q` syntax to declare positional placeholders.
+- Use `%(NAME)s` or `%(NAME)q` syntax to declare named placeholders.
+- Use `%%` to escape a literal `%` character.
+- Pass values for positional placeholders in the same order as in the template.
+- Pass values for named placeholders using `NAME=VALUE` syntax.
+- Do not declare or pass positional placeholders or values after named ones.
 
 Example:
 
@@ -39,7 +44,7 @@ jf "hello: %q" world
 # jo hello=world
 # {"hello":"world"}
 
-jf "hello: {beautiful: %q}" world
+jf "hello: {beautiful: %(what)q}" what=world
 # jo hello=$(jo beautiful=world)
 # {"hello":{"beautiful":"world"}}
 
