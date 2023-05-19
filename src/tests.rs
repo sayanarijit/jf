@@ -113,12 +113,12 @@ fn test_invalid_placeholder_error() {
 
 #[test]
 fn test_incomplete_placeholder_error() {
-    let args = ["foo: %", "bar"].map(Into::into);
-
-    assert_eq!(
-        jf::format(args).unwrap_err().to_string(),
-        "jf: template ended with incomplete placeholder"
-    );
+    for arg in ["%", "%(", "%()", "%(foo", "%(foo)", "%(foo=", "%(foo=bar)"] {
+        assert_eq!(
+            jf::format([arg].map(Into::into)).unwrap_err().to_string(),
+            "jf: template ended with incomplete placeholder"
+        );
+    }
 }
 
 #[test]
@@ -203,20 +203,6 @@ fn test_invalid_named_placeholder_error() {
 }
 
 #[test]
-fn test_print_version() {
-    let arg = ["jf v%v"].map(Into::into);
-    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.2.4""#);
-
-    let args =
-        ["{foo: %q, bar: %(bar)q, version: %v}", "foo", "bar=bar"].map(Into::into);
-
-    assert_eq!(
-        jf::format(args).unwrap().to_string(),
-        r#"{"foo":"foo","bar":"bar","version":"0.2.4"}"#
-    );
-}
-
-#[test]
 fn test_usage_example() {
     let args = [
         r#"{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}"#,
@@ -230,5 +216,19 @@ fn test_usage_example() {
     assert_eq!(
         jf::format(args).unwrap().to_string(),
         r#"{"1":1,"two":"2","3":3,"four":"4","%":"100%"}"#
+    );
+}
+
+#[test]
+fn test_print_version() {
+    let arg = ["jf v%v"].map(Into::into);
+    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.2.5""#);
+
+    let args =
+        ["{foo: %q, bar: %(bar)q, version: %v}", "foo", "bar=bar"].map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap().to_string(),
+        r#"{"foo":"foo","bar":"bar","version":"0.2.5"}"#
     );
 }

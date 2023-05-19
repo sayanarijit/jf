@@ -253,7 +253,7 @@ where
         }
     }
 
-    if last_char == Some('%') {
+    if last_char == Some('%') || placeholder_name.is_some() {
         return Err("template ended with incomplete placeholder".into());
     };
 
