@@ -129,39 +129,33 @@ where
                         last_char = None;
                     }
                     ('q', Some(')')) => {
-                        let value = named_placeholders
+                        let Some(value) = named_placeholders
                             .get(name)
-                            .or(default_value.as_ref())
-                            .ok_or(
-                                format!(
-                                "no value for placeholder '%({name})q' at column {col}"
-                            )
-                                .as_str(),
-                            )?;
+                            .or_else(|| default_value.as_ref()) else {
+                                return Err(format!("no value for placeholder '%({name})q' at column {col}").as_str().into());
+                        };
                         val.push_str(&json::to_string(value)?);
                         placeholder_name = None;
+                        default_value = None;
                         last_char = None;
                     }
                     ('s', Some(')')) => {
-                        let value = named_placeholders
+                        let Some(value) = named_placeholders
                             .get(name)
-                            .or(default_value.as_ref())
-                            .ok_or(
-                                format!(
-                                "no value for placeholder '%({name})s' at column {col}"
-                            )
-                                .as_str(),
-                            )?;
+                            .or_else(|| default_value.as_ref()) else {
+                                return Err(format!("no value for placeholder '%({name})s' at column {col}").as_str().into());
+                        };
                         val.push_str(value);
                         placeholder_name = None;
+                        default_value = None;
                         last_char = None;
                     }
                     (_, Some(')')) => {
-                        return Err(format!(
-                        "invalid named placeholder '%({name}){ch}' at column {col}, use '%({name})q' for quoted strings and '%({name})s' for other values"
-                    )
-                    .as_str()
-                    .into());
+                        return Err(
+                            format!("invalid named placeholder '%({name}){ch}' at column {col}, use '%({name})q' for quoted strings and '%({name})s' for other values")
+                            .as_str()
+                            .into()
+                        );
                     }
                     (')', _) => {
                         last_char = Some(ch);
@@ -171,11 +165,11 @@ where
                         last_char = Some(ch);
                     }
                     (_, _) => {
-                        return Err(format!(
-                        "invalid character {ch:?} in placeholder name at column {col}, use numbers, letters and underscores only"
-                    )
-                    .as_str()
-                    .into());
+                        return Err(
+                            format!("invalid character {ch:?} in placeholder name at column {col}, use numbers, letters and underscores only")
+                            .as_str()
+                            .into()
+                        );
                     }
                 }
             }
@@ -192,16 +186,14 @@ where
                 ('q', Some('%')) => {
                     if is_reading_named_placeholders {
                         return Err(
-                        format!("positional placeholder '%q' at column {col} was used after named placeholders, use named placeholder syntax '%(NAME)q' instead")
+                            format!("positional placeholder '%q' at column {col} was used after named placeholders, use named placeholder syntax '%(NAME)q' instead")
                             .as_str()
                             .into()
                         );
                     };
 
                     let Some((_, arg)) = args.next() else {
-                        return Err(format!("placeholder missing value at column {col}")
-                            .as_str()
-                            .into())
+                        return Err(format!("placeholder missing value at column {col}").as_str().into())
                     };
 
                     val.push_str(&json::to_string(&arg)?);
@@ -210,16 +202,18 @@ where
                 ('s', Some('%')) => {
                     if is_reading_named_placeholders {
                         return Err(
-                        format!("positional placeholder '%s' at column {col} was used after named placeholders, use named placeholder syntax '%(NAME)s' instead")
+                            format!("positional placeholder '%s' at column {col} was used after named placeholders, use named placeholder syntax '%(NAME)s' instead")
                             .as_str()
                             .into()
                         );
                     };
 
                     let Some((_, arg)) = args.next() else {
-                        return Err(format!("placeholder missing value at column {col}")
+                        return Err(
+                            format!("placeholder missing value at column {col}")
                             .as_str()
-                            .into())
+                            .into()
+                        );
                     };
 
                     val.push_str(&arg);
