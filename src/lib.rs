@@ -226,13 +226,13 @@ where
                     last_char = None;
                 }
                 ('v', Some('%')) => {
-                    val.push_str(&VERSION);
+                    val.push_str(VERSION);
                     last_char = None;
                 }
                 ('(', Some('%')) => {
                     if !is_reading_named_placeholders {
                         is_reading_named_placeholders = true;
-                        while let Some((valnum, arg)) = args.next() {
+                        for (valnum, arg) in args.by_ref() {
                             let Some((name, value)) = arg.split_once('=') else {
                                 return Err(format!("invalid syntax for value no. {valnum}, use 'NAME=VALUE' syntax").as_str().into());
                             };
