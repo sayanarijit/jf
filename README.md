@@ -9,7 +9,7 @@ However, unlike `jo`, where you build the JSON object by nesting `jo` outputs,
 
 ## Install
 
-#### [Cargo](cargo)
+#### [Cargo][cargo]
 
 ```bash
 cargo install jf
