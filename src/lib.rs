@@ -131,7 +131,7 @@ where
                     ('q', Some(')')) => {
                         let Some(value) = named_placeholders
                             .get(name)
-                            .or_else(|| default_value.as_ref()) else {
+                            .or(default_value.as_ref()) else {
                                 return Err(format!("no value for placeholder '%({name})q' at column {col}").as_str().into());
                         };
                         val.push_str(&json::to_string(value)?);
@@ -142,7 +142,7 @@ where
                     ('s', Some(')')) => {
                         let Some(value) = named_placeholders
                             .get(name)
-                            .or_else(|| default_value.as_ref()) else {
+                            .or(default_value.as_ref()) else {
                                 return Err(format!("no value for placeholder '%({name})s' at column {col}").as_str().into());
                         };
                         val.push_str(value);
