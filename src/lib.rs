@@ -95,17 +95,18 @@ where
     let mut is_reading_named_placeholders = false;
     let mut placeholder_name: Option<String> = None;
     let mut named_placeholders = HashMap::<String, String>::new();
+    let mut default_buf: Option<String> = None;
     let mut default_value: Option<String> = None;
 
     for (col, ch) in format.chars().enumerate() {
         if let Some(name) = placeholder_name.as_mut() {
             // Reading a named placeholder
 
-            if let Some(val) = default_value.as_mut() {
+            if let Some(val) = default_buf.as_mut() {
                 // Reading a default value for a named placeholder
 
                 match (ch, last_char) {
-                    (ch, Some('\\')) => {
+                    (_, Some('\\')) => {
                         val.push(ch);
                         last_char = None;
                     }
@@ -113,13 +114,10 @@ where
                         last_char = Some(ch);
                     }
                     (')', _) => {
-                        if !named_placeholders.contains_key(name) {
-                            named_placeholders.insert(name.to_string(), val.to_string());
-                        }
-                        default_value = None;
+                        default_value = default_buf.take();
                         last_char = Some(ch);
                     }
-                    (ch, _) => {
+                    (_, _) => {
                         val.push(ch);
                         last_char = Some(ch);
                     }
@@ -127,32 +125,38 @@ where
             } else {
                 match (ch, last_char) {
                     ('=', _) => {
-                        default_value = Some("".into());
+                        default_buf = Some("".into());
                         last_char = None;
                     }
                     ('q', Some(')')) => {
-                        let value = named_placeholders.get(name).ok_or(
-                            format!(
+                        let value = named_placeholders
+                            .get(name)
+                            .or(default_value.as_ref())
+                            .ok_or(
+                                format!(
                                 "no value for placeholder '%({name})q' at column {col}"
                             )
-                            .as_str(),
-                        )?;
+                                .as_str(),
+                            )?;
                         val.push_str(&json::to_string(value)?);
                         placeholder_name = None;
                         last_char = None;
                     }
                     ('s', Some(')')) => {
-                        let value = named_placeholders.get(name).ok_or(
-                            format!(
+                        let value = named_placeholders
+                            .get(name)
+                            .or(default_value.as_ref())
+                            .ok_or(
+                                format!(
                                 "no value for placeholder '%({name})s' at column {col}"
                             )
-                            .as_str(),
-                        )?;
+                                .as_str(),
+                            )?;
                         val.push_str(value);
                         placeholder_name = None;
                         last_char = None;
                     }
-                    (ch, Some(')')) => {
+                    (_, Some(')')) => {
                         return Err(format!(
                         "invalid named placeholder '%({name}){ch}' at column {col}, use '%({name})q' for quoted strings and '%({name})s' for other values"
                     )
@@ -166,7 +170,7 @@ where
                         name.push(ch);
                         last_char = Some(ch);
                     }
-                    (ch, _) => {
+                    (_, _) => {
                         return Err(format!(
                         "invalid character {ch:?} in placeholder name at column {col}, use numbers, letters and underscores only"
                     )

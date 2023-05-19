@@ -32,6 +32,11 @@ fn test_format_named() {
         jf::format(args).unwrap(),
         r#"{"1":1,"one":"1","true":true,"truestr":"true","foo":"foo","bar":"bar","esc":"%"}"#
     );
+
+    assert_eq!(
+        jf::format([r#"{1: %(1=1)s, one: %(1=one)q}"#].map(Into::into)).unwrap(),
+        r#"{"1":1,"one":"one"}"#
+    )
 }
 
 #[test]
