@@ -205,14 +205,14 @@ fn test_invalid_named_placeholder_error() {
 #[test]
 fn test_print_version() {
     let arg = ["jf v%v"].map(Into::into);
-    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.2.3""#);
+    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.2.4""#);
 
     let args =
         ["{foo: %q, bar: %(bar)q, version: %v}", "foo", "bar=bar"].map(Into::into);
 
     assert_eq!(
         jf::format(args).unwrap().to_string(),
-        r#"{"foo":"foo","bar":"bar","version":"0.2.3"}"#
+        r#"{"foo":"foo","bar":"bar","version":"0.2.4"}"#
     );
 }
 
