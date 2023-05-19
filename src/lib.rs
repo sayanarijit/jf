@@ -2,10 +2,9 @@ pub use serde_json as json;
 pub use serde_yaml as yaml;
 use std::{borrow::Cow, collections::HashMap, fmt::Display};
 
-pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub(crate) const USAGE: &str = r#"not enough arguments
-
+pub const USAGE: &str = r#"
 USAGE: jf TEMPLATE [VALUE]... [NAME=VALUE]...
 
   Where TEMPLATE may contain the following placeholders:
@@ -35,12 +34,13 @@ pub enum Error {
     Json(json::Error),
     Yaml(yaml::Error),
     Jf(String),
+    Usage,
 }
 
 impl Error {
     pub fn returncode(&self) -> i32 {
         match self {
-            Self::Jf(_) => 1,
+            Self::Usage | Self::Jf(_) => 1,
             Self::Json(_) => 2,
             Self::Yaml(_) => 3,
         }
@@ -68,6 +68,11 @@ impl From<&str> for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Usage => {
+                writeln!(f, "jf: not enough arguments")?;
+                write!(f, "{USAGE}")
+            }
+
             Self::Json(e) => write!(f, "json: {e}"),
             Self::Yaml(e) => write!(f, "yaml: {e}"),
             Self::Jf(e) => write!(f, "jf: {e}"),
@@ -75,13 +80,14 @@ impl Display for Error {
     }
 }
 
+/// Format a string using the given arguments.
 pub fn format<'a, I>(args: I) -> Result<String, Error>
 where
     I: IntoIterator<Item = Cow<'a, str>>,
 {
     let mut args = args.into_iter().enumerate();
     let Some((_, format)) = args.next() else {
-        return Err(USAGE.into());
+        return Err(Error::Usage);
     };
 
     let mut val = "".to_string();
