@@ -9,8 +9,8 @@ USAGE: jf TEMPLATE [VALUE]... [NAME=VALUE]...
 
   Where TEMPLATE may contain the following placeholders:
 
-  %q, %(NAME)q, %(NAME=DEFAULT)q for quoted and safely escaped JSON string.
-  %s, %(NAME)s, %(NAME=DEFAULT)s for JSON values other than string.
+  `%q`, `%(NAME)q`, `%(NAME=DEFAULT)q` for quoted and safely escaped JSON string.
+  `%s`, `%(NAME)s`, `%(NAME=DEFAULT)s` for JSON values other than string.
 
   And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 

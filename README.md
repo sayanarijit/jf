@@ -31,8 +31,8 @@ jf TEMPLATE [VALUE]... [NAME=VALUE]...
 
 Where TEMPLATE may contain the following placeholders:
 
-- %q, %(NAME)q, %(NAME=DEFAULT)q for quoted and safely escaped JSON string.
-- %s, %(NAME)s, %(NAME=DEFAULT)s for JSON values other than string.
+- `%q`, `%(NAME)q`, `%(NAME=DEFAULT)q` for quoted and safely escaped JSON string.
+- `%s`, `%(NAME)s`, `%(NAME=DEFAULT)s` for JSON values other than string.
 
 And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 
@@ -67,7 +67,7 @@ jf "{a: {b: %s, c: {d: %s, f: %s}, d: {e: [%s, %q]}}, b: {e: [%q]}}" 0 1 true 2 
 
 ## Packaging
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/jf.svg)](https://repology.org/project/jf/versions)
+[![Packaging status][repos]][repology]
 
 [jf]: https://github.com/sayanarijit/jf
 [jo]: https://github.com/jpmens/jo
@@ -76,3 +76,5 @@ jf "{a: {b: %s, c: {d: %s, f: %s}, d: {e: [%s, %q]}}, b: {e: [%q]}}" 0 1 true 2 
 [bins]: https://github.com/sayanarijit/jf/releases/latest
 [cargo]: https://crates.io/crates/jf
 [nixpkgs]: https://github.com/NixOS/nixpkgs/blob/nixos-unstable/pkgs/development/tools/jf/default.nix
+[repology]: https://repology.org/project/jf/versions
+[repos]: https://repology.org/badge/vertical-allrepos/jf.svg
