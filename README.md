@@ -11,8 +11,16 @@ However, unlike `jo`, where you build the JSON object by nesting `jo` outputs,
 
 #### [Cargo][cargo]
 
+As a CLI tool
+
 ```bash
 cargo install jf
+```
+
+Or as a library:
+
+```bash
+cargo add jf
 ```
 
 #### [Nixpkgs][nixpkgs]
@@ -63,6 +71,20 @@ jf "d: {m: %s, n: %s}" 10 20
 jf "{a: {b: %s, c: {d: %s, f: %s}, d: {e: [%s, %q]}}, b: {e: [%q]}}" 0 1 true 2 sam hi
 # jo -d\|first_char_only a\|b=0 a\|c\|d=1 a\|d\|e[]=2 a\|d\|e[]=sam a\|c[f]@1 b\|e[]=hi
 # {"a":{"b":0,"c":{"d":1,"f":true},"d":{"e":[2,"sam"]}},"b":{"e":["hi"]}}
+```
+
+### Rust Library
+
+```rust
+let json = match jf::format(["%q", "JSON FOrmatted"].map(Into::into)) {
+    Ok(msg) => msg,
+    Err(jf::Error::Usage) => {
+        bail!("usage: mytool: TEMPLATE [VALUE]... [NAME=VALUE]...")
+    }
+    Err(jf::Error::Jf(e)) => bail!("mytool: {e}"),
+    Err(jf::Error::Json(e)) => bail!("mytool: json: {e}"),
+    Err(jf::Error::Yaml(e)) => bail!("mytool: yaml: {e}"),
+};
 ```
 
 ## Packaging
