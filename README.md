@@ -76,8 +76,8 @@ jf "{a: {b: %s, c: {d: %s, f: %s}, d: {e: [%s, %q]}}, b: {e: [%q]}}" 0 1 true 2 
 ### Rust Library
 
 ```rust
-let json = match jf::format(["%q", "JSON FOrmatted"].map(Into::into)) {
-    Ok(msg) => msg,
+let json = match jf::format(["%q", "JSON Formatted"].map(Into::into)) {
+    Ok(value) => value,
     Err(jf::Error::Usage) => {
         bail!("usage: mytool: TEMPLATE [VALUE]... [NAME=VALUE]...")
     }
