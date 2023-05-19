@@ -48,13 +48,13 @@ fn test_format_both() {
 #[test]
 fn test_format_named_with_default() {
     let args = [
-        r#"{"1": %(1=1)s, one: %(1=1)q, foo: %(foo=default)q, empty: %(bar=)q, esc: %(x=(\))q}"#,
+        r#"{"1": %(1=1)s, one: %(1=1)q, foo: %(foo=default)q, empty: %(bar=)q, esc: %(x=(\))q, multi=: %(a=b=c)q}"#,
         "foo=bar",
     ]
     .map(Into::into);
     assert_eq!(
         jf::format(args).unwrap(),
-        r#"{"1":1,"one":"1","foo":"bar","empty":"","esc":"()"}"#
+        r#"{"1":1,"one":"1","foo":"bar","empty":"","esc":"()","multi=":"b=c"}"#
     );
 }
 
