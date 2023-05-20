@@ -9,21 +9,40 @@ USAGE: jf TEMPLATE [VALUE]... [NAME=VALUE]...
 
   Where TEMPLATE may contain the following placeholders:
 
-  `%q`, `%(NAME)q`, `%(NAME=DEFAULT)q` for quoted and safely escaped JSON string.
-  `%s`, `%(NAME)s`, `%(NAME=DEFAULT)s` for JSON values other than string.
+  `%q` for quoted and safely escaped JSON string.
+  `%s` for JSON values other than string.
+  `%v` for the `jf` version number.
+  `%%` for a literal `%` character.
 
   And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 
-  Use `%s` or `%q` syntax to declare positional placeholders.
-  Use `%(NAME)s` or `%(NAME)q` syntax to declare named placeholders.
-  Use `%(NAME=DEFAULT)s` or `%(NAME=DEFAULT)q` syntax to declare default values for named placeholders.
-  Use `%%` to escape a literal `%` character.
+SYNTAX:
+
+  `%s`, `%q`                              for posiitonal placeholders.
+  `%(NAME)s`, `%(NAME)q`                  for named placeholders.
+  `%(NAME=DEFAULT)s`, `%(NAME=DEFAULT)q`  for placeholders with default values.
+  `%?(NAME)s`, `%?(NAME)q`                for optional placeholders.
+
+RULES:
+
   Pass values for positional placeholders in the same order as in the template.
   Pass values for named placeholders using `NAME=VALUE` syntax.
   Do not declare or pass positional placeholders or values after named ones.
-  To get the `jf` version number, run `jf %v`.
+  Nesting placeholders is prohibited.
 
-EXAMPLE:
+EXAMPLES:
+
+  $ jf %s 1
+  1
+
+  $ jf %q 1
+  "1"
+
+  $ jf "%q: %(value=default)q" foo value=bar
+  {"foo":"bar"}
+
+  $ jf "{ str_or_bool: %?(str)q %?(bool)s, optional: %?(optional)q }" str=true
+  {"str_or_bool":"true","optional":null}
 
   $ jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
   {"1":1,"two":"2","3":3,"four":"4","%":"100%"}
@@ -80,6 +99,225 @@ impl Display for Error {
     }
 }
 
+fn read_default_value<C>(chars: &mut C) -> String
+where
+    C: Iterator<Item = (usize, char)>,
+{
+    // Reading a default value for a named placeholder
+
+    let mut last_char = None;
+    let mut val = String::new();
+
+    for (_, ch) in chars {
+        match (ch, last_char) {
+            (_, Some('\\')) => {
+                val.push(ch);
+                last_char = None;
+            }
+            ('\\', _) => {
+                last_char = Some(ch);
+            }
+            (')', _) => {
+                break;
+            }
+            (_, _) => {
+                val.push(ch);
+                last_char = None;
+            }
+        }
+    }
+
+    val
+}
+
+fn read_named_placeholder<C>(
+    val: &mut String,
+    chars: &mut C,
+    named_placeholders: &HashMap<String, String>,
+    is_optional: bool,
+) -> Result<(), Error>
+where
+    C: Iterator<Item = (usize, char)>,
+{
+    // Reading a named placeholder
+
+    let mut last_char = None;
+    let mut name = "".to_string();
+    let mut default_value: Option<String> = None;
+
+    loop {
+        let Some((col, ch)) = chars.next() else {
+            return Err("template ended with incomplete placeholder".into());
+        };
+
+        match (ch, last_char) {
+            ('=', _) => {
+                if is_optional {
+                    return Err(format!("optional placeholder '{name}' at column {col} cannot have a default value").as_str().into());
+                }
+                default_value = Some(read_default_value(chars));
+                last_char = Some(')');
+            }
+            (')', _) => {
+                last_char = Some(ch);
+            }
+            (ch, Some(')')) if ch == 'q' || ch == 's' => {
+                if name.is_empty() {
+                    return Err(format!("placeholder missing name at column {col}")
+                        .as_str()
+                        .into());
+                }
+                let maybe_value =
+                    named_placeholders.get(&name).or(default_value.as_ref());
+
+                if let Some(value) = maybe_value {
+                    if ch == 'q' {
+                        val.push_str(&json::to_string(value)?);
+                    } else {
+                        val.push_str(value);
+                    }
+                } else if !is_optional {
+                    return Err(format!(
+                        "no value for placeholder '%({name}){ch}' at column {col}"
+                    )
+                    .as_str()
+                    .into());
+                };
+                break;
+            }
+            (ch, None) if ch.is_alphanumeric() || ch == '_' => {
+                name.push(ch);
+                last_char = None;
+            }
+            (_, Some(')')) => {
+                return Err(
+                    format!("invalid named placeholder '%({name}){ch}' at column {col}, use '%({name})q' for quoted strings and '%({name})s' for other values")
+                    .as_str()
+                    .into()
+                );
+            }
+            (_, _) => {
+                return Err(
+                    format!("invalid character {ch:?} in placeholder name at column {col}, use numbers, letters and underscores only")
+                    .as_str()
+                    .into()
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn read_positional_placeholder<'a, A>(
+    val: &mut String,
+    ch: char,
+    col: usize,
+    args: &mut A,
+) -> Result<(), Error>
+where
+    A: Iterator<Item = (usize, Cow<'a, str>)>,
+{
+    let Some((_, arg)) = args.next() else {
+        return Err(format!("placeholder missing value at column {col}").as_str().into())
+    };
+
+    if ch == 'q' {
+        val.push_str(&json::to_string(&arg)?);
+    } else {
+        val.push_str(&arg);
+    };
+    Ok(())
+}
+
+fn collect_named_placeholders<'a, A>(
+    args: &mut A,
+    named_placeholders: &mut HashMap<String, String>,
+) -> Result<(), Error>
+where
+    A: Iterator<Item = (usize, Cow<'a, str>)>,
+{
+    for (valnum, arg) in args.by_ref() {
+        let Some((name, value)) = arg.split_once('=') else {
+            return Err(format!("invalid syntax for value no. {valnum}, use 'NAME=VALUE' syntax").as_str().into());
+        };
+        named_placeholders.insert(name.to_string(), value.to_string());
+    }
+    Ok(())
+}
+
+fn format_partial<'a, C, A>(
+    chars: &mut C,
+    args: &mut A,
+) -> Result<(String, Option<char>), Error>
+where
+    C: Iterator<Item = (usize, char)>,
+    A: Iterator<Item = (usize, Cow<'a, str>)>,
+{
+    let mut val = "".to_string();
+    let mut last_char = None;
+    let mut is_reading_named_placeholders = false;
+    let mut named_placeholders = HashMap::<String, String>::new();
+    let mut is_optional = false;
+
+    while let Some((col, ch)) = chars.next() {
+        // Reading a named placeholder
+        // Not reading a named placeholder
+        match (ch, last_char) {
+            ('%', Some('%')) => {
+                val.push(ch);
+                last_char = None;
+            }
+            ('%', _) => {
+                last_char = Some(ch);
+            }
+            ('?', Some('%')) => {
+                is_optional = true;
+            }
+            ('v', Some('%')) => {
+                val.push_str(VERSION);
+                last_char = None;
+            }
+            ('(', Some('%')) => {
+                if !is_reading_named_placeholders {
+                    is_reading_named_placeholders = true;
+                    collect_named_placeholders(args, &mut named_placeholders)?;
+                };
+                read_named_placeholder(
+                    &mut val,
+                    chars,
+                    &named_placeholders,
+                    is_optional,
+                )?;
+                last_char = None;
+                is_optional = false;
+            }
+            (ch, Some('%')) if ch == 's' || ch == 'q' => {
+                if is_reading_named_placeholders {
+                    return Err(
+                        format!("positional placeholder '%{ch}' at column {col} was used after named placeholders, use named placeholder syntax '%(NAME){ch}' instead")
+                        .as_str()
+                        .into()
+                    );
+                };
+
+                read_positional_placeholder(&mut val, ch, col, args)?;
+                last_char = None;
+                is_optional = false;
+            }
+            (_, Some('%')) => {
+                return Err(format!("invalid placeholder '%{ch}' at column {col}, use one of '%s' or '%q', or escape it using '%%'").as_str().into());
+            }
+            (_, _) => {
+                val.push(ch);
+                last_char = None;
+            }
+        }
+    }
+
+    Ok((val, last_char))
+}
+
 /// Format a string using the given arguments.
 pub fn format<'a, I>(args: I) -> Result<String, Error>
 where
@@ -90,164 +328,11 @@ where
         return Err(Error::Usage);
     };
 
-    let mut val = "".to_string();
-    let mut last_char = None;
-    let mut is_reading_named_placeholders = false;
-    let mut placeholder_name: Option<String> = None;
-    let mut named_placeholders = HashMap::<String, String>::new();
-    let mut default_buf: Option<String> = None;
-    let mut default_value: Option<String> = None;
+    let mut chars = format.chars().enumerate();
 
-    for (col, ch) in format.chars().enumerate() {
-        if let Some(name) = placeholder_name.as_mut() {
-            // Reading a named placeholder
+    let (val, last_char) = format_partial(&mut chars, &mut args)?;
 
-            if let Some(val) = default_buf.as_mut() {
-                // Reading a default value for a named placeholder
-
-                match (ch, last_char) {
-                    (_, Some('\\')) => {
-                        val.push(ch);
-                        last_char = None;
-                    }
-                    ('\\', _) => {
-                        last_char = Some(ch);
-                    }
-                    (')', _) => {
-                        default_value = default_buf.take();
-                        last_char = Some(ch);
-                    }
-                    (_, _) => {
-                        val.push(ch);
-                        last_char = Some(ch);
-                    }
-                }
-            } else {
-                match (ch, last_char) {
-                    ('=', _) => {
-                        default_buf = Some("".into());
-                        last_char = None;
-                    }
-                    ('q', Some(')')) => {
-                        let Some(value) = named_placeholders
-                            .get(name)
-                            .or(default_value.as_ref()) else {
-                                return Err(format!("no value for placeholder '%({name})q' at column {col}").as_str().into());
-                        };
-                        val.push_str(&json::to_string(value)?);
-                        placeholder_name = None;
-                        default_value = None;
-                        last_char = None;
-                    }
-                    ('s', Some(')')) => {
-                        let Some(value) = named_placeholders
-                            .get(name)
-                            .or(default_value.as_ref()) else {
-                                return Err(format!("no value for placeholder '%({name})s' at column {col}").as_str().into());
-                        };
-                        val.push_str(value);
-                        placeholder_name = None;
-                        default_value = None;
-                        last_char = None;
-                    }
-                    (_, Some(')')) => {
-                        return Err(
-                            format!("invalid named placeholder '%({name}){ch}' at column {col}, use '%({name})q' for quoted strings and '%({name})s' for other values")
-                            .as_str()
-                            .into()
-                        );
-                    }
-                    (')', _) => {
-                        last_char = Some(ch);
-                    }
-                    (ch, _) if ch.is_alphanumeric() || ch == '_' => {
-                        name.push(ch);
-                        last_char = Some(ch);
-                    }
-                    (_, _) => {
-                        return Err(
-                            format!("invalid character {ch:?} in placeholder name at column {col}, use numbers, letters and underscores only")
-                            .as_str()
-                            .into()
-                        );
-                    }
-                }
-            }
-        } else {
-            // Not reading a named placeholder
-            match (ch, last_char) {
-                ('%', Some('%')) => {
-                    val.push(ch);
-                    last_char = None;
-                }
-                ('%', _) => {
-                    last_char = Some(ch);
-                }
-                ('q', Some('%')) => {
-                    if is_reading_named_placeholders {
-                        return Err(
-                            format!("positional placeholder '%q' at column {col} was used after named placeholders, use named placeholder syntax '%(NAME)q' instead")
-                            .as_str()
-                            .into()
-                        );
-                    };
-
-                    let Some((_, arg)) = args.next() else {
-                        return Err(format!("placeholder missing value at column {col}").as_str().into())
-                    };
-
-                    val.push_str(&json::to_string(&arg)?);
-                    last_char = None;
-                }
-                ('s', Some('%')) => {
-                    if is_reading_named_placeholders {
-                        return Err(
-                            format!("positional placeholder '%s' at column {col} was used after named placeholders, use named placeholder syntax '%(NAME)s' instead")
-                            .as_str()
-                            .into()
-                        );
-                    };
-
-                    let Some((_, arg)) = args.next() else {
-                        return Err(
-                            format!("placeholder missing value at column {col}")
-                            .as_str()
-                            .into()
-                        );
-                    };
-
-                    val.push_str(&arg);
-                    last_char = None;
-                }
-                ('v', Some('%')) => {
-                    val.push_str(VERSION);
-                    last_char = None;
-                }
-                ('(', Some('%')) => {
-                    if !is_reading_named_placeholders {
-                        is_reading_named_placeholders = true;
-                        for (valnum, arg) in args.by_ref() {
-                            let Some((name, value)) = arg.split_once('=') else {
-                                return Err(format!("invalid syntax for value no. {valnum}, use 'NAME=VALUE' syntax").as_str().into());
-                            };
-                            named_placeholders
-                                .insert(name.to_string(), value.to_string());
-                        }
-                    };
-                    placeholder_name = Some("".to_string());
-                }
-                (ch, Some('%')) => {
-                    return Err(format!("invalid placeholder '%{ch}' at column {col}, use one of '%s' or '%q', or escape it using '%%'").as_str().into());
-                }
-                (ch, _) => {
-                    val.push(ch);
-                    last_char = Some(ch);
-                }
-            }
-        }
-    }
-
-    if last_char == Some('%') || placeholder_name.is_some() {
+    if last_char == Some('%') {
         return Err("template ended with incomplete placeholder".into());
     };
 

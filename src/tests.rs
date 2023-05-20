@@ -64,6 +64,52 @@ fn test_format_named_with_default() {
 }
 
 #[test]
+fn test_format_optional() {
+    let args = [r#"{foo: %?(foo)q, bar: %?(bar)q}"#, "foo=foo"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"foo":"foo","bar":null}"#);
+
+    let args = [r#"{foo: %?(foo)q, bar: %?(bar)q}"#, "bar=bar"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"foo":null,"bar":"bar"}"#);
+
+    let args = [
+        r#"{"null": %?(1)s %?(one)q, "2": %?(2)s %?(two)q, three: %?(3)s %?(three)q}"#,
+        "2=2",
+        "three=3",
+    ]
+    .map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap(),
+        r#"{"null":null,"2":2,"three":"3"}"#
+    );
+}
+
+#[test]
+fn test_optional_placeholder_with_default_value_error() {
+    let args = [r#"%?(foo=bar)q"#].map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: optional placeholder 'foo' at column 6 cannot have a default value"
+    );
+}
+
+#[test]
+fn test_missing_name_error() {
+    let args = [r#"%()s"#].map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: placeholder missing name at column 3"
+    );
+
+    let args = [r#"%(=foo)q"#].map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: placeholder missing name at column 7"
+    );
+}
+
+#[test]
 fn test_missing_value_error() {
     let args = [
         r#"{"1": %s, one: %q, "true": %s, "truestr": %q, foo: %s, bar: %q, esc: %%}"#,
@@ -113,7 +159,16 @@ fn test_invalid_placeholder_error() {
 
 #[test]
 fn test_incomplete_placeholder_error() {
-    for arg in ["%", "%(", "%()", "%(foo", "%(foo)", "%(foo=", "%(foo=bar)"] {
+    for arg in [
+        "%",
+        "%(",
+        "%()",
+        "%(foo",
+        "%(foo)",
+        "%(foo=",
+        "%(foo=bar",
+        "%(foo=bar)",
+    ] {
         assert_eq!(
             jf::format([arg].map(Into::into)).unwrap_err().to_string(),
             "jf: template ended with incomplete placeholder"
@@ -135,6 +190,16 @@ fn test_yaml_error() {
     assert_eq!(
         jf::format(args).unwrap_err().to_string(),
         "yaml: deserializing from YAML containing more than one document is not supported",
+    );
+}
+
+#[test]
+fn test_json_error() {
+    let args = ["{null: null}"].map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "json: key must be a string",
     );
 }
 
@@ -171,7 +236,7 @@ fn test_no_value_for_placeholder_name_error() {
 
 #[test]
 fn test_invalid_character_in_placeholder_name_error() {
-    for ch in [' ', '\t', '\n', '\r', '\0', '\'', '"', '{', '}'].iter() {
+    for ch in [' ', '\t', '\n', '\r', '\0', '\'', '"', '{', '}', '?'].iter() {
         let args = [format!("%(foo{ch}bar)s)")].map(Into::into);
         assert_eq!(
             jf::format(args.clone()).unwrap_err().to_string(),
