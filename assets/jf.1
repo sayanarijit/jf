@@ -8,19 +8,19 @@ Where TEMPLATE may contain the following placeholders:
 .TP
 .B
 `%q`
-for quoted and safely escaped JSON string.
+quoted and safely escaped JSON string.
 .TP
 .B
 `%s`
-for JSON values other than string.
+JSON values other than string.
 .TP
 .B
 `%v`
-for the `jf` version number.
+the `jf` version number.
 .TP
 .B
 `%%`
-for a literal `%` character.
+a literal `%` character.
 .PP
 And [VALUE]\.\.\. [NAME=VALUE]\.\.\. are the values for the placeholders.
 .SH SYNTAX
@@ -28,24 +28,32 @@ And [VALUE]\.\.\. [NAME=VALUE]\.\.\. are the values for the placeholders.
 .TP
 .B
 `%s`, `%q`
-for posiitonal placeholders.
+posiitonal placeholder.
 .TP
 .B
 `%(NAME)s`, `%(NAME)q`
-for named placeholders.
-`%(NAME=DEFAULT)s`, `%(NAME=DEFAULT)q` for placeholders with default values.
+named placeholder.
+`%(NAME=DEFAULT)s`, `%(NAME=DEFAULT)q` placeholder with default value.
 .TP
 .B
-`%?(NAME)s`, `%?(NAME)q`
-for placeholders with optional values.
+`%(NAME)?s`, `%(NAME)?q`
+placeholder with optional value.
 .TP
 .B
 `%*s`, `%*q`
-for variable number of array items.
+expand positional values as array items.
 .TP
 .B
 `%**s`, `%**q`
-for variable number of key value pairs.
+expand positional values as key value pairs.
+.TP
+.B
+`%(NAME)*s`, `%(NAME)*q`
+expand named values as array items.
+.TP
+.B
+`%(NAME)**s`, `%(NAME)**q`
+expand positional values as key value pairs.
 .SH RULES
 
 .IP \(bu 3
@@ -53,32 +61,38 @@ Pass values for positional placeholders in the same order as in the template.
 .IP \(bu 3
 Pass values for named placeholders using `NAME=VALUE` syntax.
 .IP \(bu 3
+Pass values for named array items using `NAME=ITEM_N` syntax.
+.IP \(bu 3
+Pass values for named key value pairs using `NAME=KEY_N NAME=VALUE_N` syntax.
+.IP \(bu 3
 Optional placeholders default to empty string, which is considered as null.
 .IP \(bu 3
 Do not declare or pass positional placeholders or values after named ones.
 .IP \(bu 3
-Nesting placeholders is prohibited.
-.IP \(bu 3
-Variable length placeholder should be the last placeholder in a template.
+Expandable positional placeholder should be the last placeholder in a template.
 .SH EXAMPLES
 
-jf %s 1
-.SS  # 1
+$ jf %s 1
+.SS  - 1
 
-jf %q 1
-.SS  # "1"
+$ jf %q 1
+.SS  - "1"
 
-jf [%*s] 1 2 3
-.SS  # [1,2,3]
+$ jf [%*s] 1 2 3
+.SS  - [1,2,3]
 
-jf {%**q} one 1 two 2 three 3
-# {"one":"1","two":"2","three":"3"}
+$ jf {%**q} one 1 two 2 three 3
+.IP \(bu 3
+{"one":"1","two":"2","three":"3"}
 .PP
-jf "%q: %(value=default)q" foo value=bar
-# {"foo":"bar"}
+$ jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
+.IP \(bu 3
+{"foo":"bar","biz":"baz"}
 .PP
-jf "{str_or_bool: %?(str)q %?(bool)s, optional: %?(optional)q}" str=true
-# {"str_or_bool":"true","optional":null}
+$ jf "{str_or_bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
+.IP \(bu 3
+{"str_or_bool":"true","optional":null}
 .PP
-jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
-# {"1":1,"two":"2","3":3,"four":"4","%":"100%"}
+$ jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
+.IP \(bu 3
+{"1":1,"two":"2","3":3,"four":"4","%":"100%"}
