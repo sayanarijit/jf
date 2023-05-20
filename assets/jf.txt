@@ -1,4 +1,3 @@
-
 USAGE
 
   jf TEMPLATE [VALUE]... [NAME=VALUE]...

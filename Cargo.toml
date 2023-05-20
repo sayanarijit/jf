@@ -21,3 +21,7 @@ strip = true
 codegen-units = 1
 lto = true
 panic = 'abort'
+
+[features]
+default = ["manpage"]
+manpage = []  # This is a dummy feature, just to toggle manpage generation

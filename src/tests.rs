@@ -340,9 +340,10 @@ fn test_print_version() {
     );
 }
 
+#[cfg(feature = "manpage")]
 #[test]
 fn update_manpage() {
-    std::fs::write("assets/jf.txt", jf::USAGE).unwrap();
+    std::fs::write("assets/jf.txt", jf::USAGE.trim()).unwrap();
     let man = std::process::Command::new("txt2man")
         .arg("-P")
         .arg("jf")
