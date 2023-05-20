@@ -208,7 +208,7 @@ fn test_incomplete_placeholder_error() {
 fn test_not_enough_arguments_error() {
     let usage_err = jf::format([]).unwrap_err().to_string();
     assert!(usage_err.contains("not enough arguments"));
-    assert!(usage_err.contains("USAGE: jf TEMPLATE [VALUE]... [NAME=VALUE]..."));
+    assert!(usage_err.contains("jf TEMPLATE [VALUE]... [NAME=VALUE]..."));
 }
 
 #[test]
@@ -338,4 +338,22 @@ fn test_print_version() {
         jf::format(args).unwrap().to_string(),
         r#"{"foo":"foo","bar":"bar","version":"0.2.7"}"#
     );
+}
+
+#[test]
+fn update_manpage() {
+    std::fs::write("assets/jf.txt", jf::USAGE).unwrap();
+    let man = std::process::Command::new("txt2man")
+        .arg("-P")
+        .arg("jf")
+        .arg("-t")
+        .arg("jf")
+        .arg("-d")
+        .arg("1")
+        .arg("jf")
+        .arg("assets/jf.txt")
+        .output()
+        .unwrap()
+        .stdout;
+    std::fs::write("assets/jf.1", man).unwrap();
 }

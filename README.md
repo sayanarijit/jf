@@ -35,7 +35,7 @@ nix-env -f https://github.com/NixOS/nixpkgs/tarball/nixos-unstable -iA jf
 
 ### USAGE
 
-```
+```bash
 jf TEMPLATE [VALUE]... [NAME=VALUE]...
 ```
 
@@ -55,7 +55,7 @@ And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 - `%(NAME=DEFAULT)s`, `%(NAME=DEFAULT)q` for placeholders with default values.
 - `%?(NAME)s`, `%?(NAME)q` for optional placeholders.
 - `%*s`, `%*q` for variable number of array items.
-- `%**s`, `%?**q` for variable number of key value pairs.
+- `%**s`, `%**q` for variable number of key value pairs.
 
 ### RULES
 
@@ -79,7 +79,6 @@ jf [%*s] 1 2 3
 
 jf {%**q} one 1 two 2 three 3
 # {"one":"1","two":"2","three":"3"}
-
 
 jf "%q: %(value=default)q" foo value=bar
 # {"foo":"bar"}
