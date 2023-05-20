@@ -57,7 +57,7 @@ And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 - `%*s`, `%*q` expand positional values as array items.
 - `%**s`, `%**q` expand positional values as key value pairs.
 - `%(NAME)*s`, `%(NAME)*q` expand named values as array items.
-- `%(NAME)**s`, `%(NAME)**q` expand positional values as key value pairs.
+- `%(NAME)**s`, `%(NAME)**q` expand named values as key value pairs.
 
 ### RULES
 
