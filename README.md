@@ -63,6 +63,7 @@ And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 - Pass values for named placeholders using `NAME=VALUE` syntax.
 - Do not declare or pass positional placeholders or values after named ones.
 - Nesting placeholders is prohibited.
+- Variable length placeholder should be the last placeholder in a template.
 
 ### EXAMPLES
 
