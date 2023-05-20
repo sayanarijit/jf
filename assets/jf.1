@@ -37,7 +37,7 @@ for named placeholders.
 .TP
 .B
 `%?(NAME)s`, `%?(NAME)q`
-for optional placeholders.
+for placeholders with optional values.
 .TP
 .B
 `%*s`, `%*q`
@@ -52,6 +52,8 @@ for variable number of key value pairs.
 Pass values for positional placeholders in the same order as in the template.
 .IP \(bu 3
 Pass values for named placeholders using `NAME=VALUE` syntax.
+.IP \(bu 3
+Optional placeholders default to empty string, which is considered as null.
 .IP \(bu 3
 Do not declare or pass positional placeholders or values after named ones.
 .IP \(bu 3

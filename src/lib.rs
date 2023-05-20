@@ -23,7 +23,7 @@ SYNTAX
   `%s`, `%q`                             for posiitonal placeholders.
   `%(NAME)s`, `%(NAME)q`                 for named placeholders.
   `%(NAME=DEFAULT)s`, `%(NAME=DEFAULT)q` for placeholders with default values.
-  `%?(NAME)s`, `%?(NAME)q`               for optional placeholders.
+  `%?(NAME)s`, `%?(NAME)q`               for placeholders with optional values.
   `%*s`, `%*q`                           for variable number of array items.
   `%**s`, `%**q`                         for variable number of key value pairs.
 
@@ -31,6 +31,7 @@ RULES
 
   * Pass values for positional placeholders in the same order as in the template.
   * Pass values for named placeholders using `NAME=VALUE` syntax.
+  * Optional placeholders default to empty string, which is considered as null.
   * Do not declare or pass positional placeholders or values after named ones.
   * Nesting placeholders is prohibited.
   * Variable length placeholder should be the last placeholder in a template.
