@@ -54,6 +54,8 @@ And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 - `%(NAME)s`, `%(NAME)q` for named placeholders.
 - `%(NAME=DEFAULT)s`, `%(NAME=DEFAULT)q` for placeholders with default values.
 - `%?(NAME)s`, `%?(NAME)q` for optional placeholders.
+- `%*s`, `%*q` for variable number of array items.
+- `%**s`, `%?**q` for variable number of key value pairs.
 
 ### RULES
 
@@ -71,34 +73,21 @@ jf %s 1
 jf %q 1
 # "1"
 
+jf [%*s] 1 2 3
+# [1,2,3]
+
+jf {%**q} one 1 two 2 three 3
+# {"one":"1","two":"2","three":"3"}
+
+
 jf "%q: %(value=default)q" foo value=bar
 # {"foo":"bar"}
 
-jf "{ str_or_bool: %?(str)q %?(bool)s, optional: %?(optional)q }" str=true
+jf "{str_or_bool: %?(str)q %?(bool)s, optional: %?(optional)q}" str=true
 # {"str_or_bool":"true","optional":null}
 
 jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
 # {"1":1,"two":"2","3":3,"four":"4","%":"100%"}
-```
-
-#### vs jo
-
-```bash
-jf "hello: %q" world
-# jo hello=world
-# {"hello":"world"}
-
-jf "hello: {beautiful: %(what)q}" what=world
-# jo hello=$(jo beautiful=world)
-# {"hello":{"beautiful":"world"}}
-
-jf "d: {m: %s, n: %s}" 10 20
-# jo d[m]=10 d[n]=20
-# {"d":{"m":10,"n":20}}
-
-jf "{a: {b: %s, c: {d: %s, f: %s}, d: {e: [%s, %q]}}, b: {e: [%q]}}" 0 1 true 2 sam hi
-# jo -d\|first_char_only a\|b=0 a\|c\|d=1 a\|d\|e[]=2 a\|d\|e[]=sam a\|c[f]@1 b\|e[]=hi
-# {"a":{"b":0,"c":{"d":1,"f":true},"d":{"e":[2,"sam"]}},"b":{"e":["hi"]}}
 ```
 
 #### Rust Library

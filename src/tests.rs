@@ -85,6 +85,27 @@ fn test_format_optional() {
 }
 
 #[test]
+fn test_format_var_arr() {
+    let args = [r#"{foo: [1, %*s, 4]}"#, "2", "3"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"foo":[1,2,3,4]}"#);
+
+    let args = [r#"{foo: [1, %*q, 4]}"#, "2", "3"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"foo":[1,"2","3",4]}"#);
+}
+
+#[test]
+fn test_format_var_obj() {
+    let args = [r#"{foo: bar, %**s, 2: 2}"#, "1", "1"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"foo":"bar","1":1,"2":2}"#);
+
+    let args = [r#"{foo: {%**q, 3: 3}}"#, "one", "1", "two", "2"].map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap(),
+        r#"{"foo":{"one":"1","two":"2","3":3}}"#
+    );
+}
+
+#[test]
 fn test_optional_placeholder_with_default_value_error() {
     let args = [r#"%?(foo=bar)q"#].map(Into::into);
 
@@ -124,6 +145,13 @@ fn test_missing_value_error() {
     assert_eq!(
         jf::format(args).unwrap_err().to_string(),
         "jf: placeholder missing value at column 61"
+    );
+
+    let args = [r#"{%**q}"#, "1"].map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: placeholder missing value at column 4"
     );
 }
 

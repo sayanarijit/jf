@@ -9,19 +9,21 @@ USAGE: jf TEMPLATE [VALUE]... [NAME=VALUE]...
 
   Where TEMPLATE may contain the following placeholders:
 
-  `%q` for quoted and safely escaped JSON string.
-  `%s` for JSON values other than string.
-  `%v` for the `jf` version number.
-  `%%` for a literal `%` character.
+  `%q`  for quoted and safely escaped JSON string.
+  `%s`  for JSON values other than string.
+  `%v`  for the `jf` version number.
+  `%%`  for a literal `%` character.
 
   And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 
 SYNTAX:
 
-  `%s`, `%q`                              for posiitonal placeholders.
-  `%(NAME)s`, `%(NAME)q`                  for named placeholders.
-  `%(NAME=DEFAULT)s`, `%(NAME=DEFAULT)q`  for placeholders with default values.
-  `%?(NAME)s`, `%?(NAME)q`                for optional placeholders.
+  `%s`, `%q`                             for posiitonal placeholders.
+  `%(NAME)s`, `%(NAME)q`                 for named placeholders.
+  `%(NAME=DEFAULT)s`, `%(NAME=DEFAULT)q` for placeholders with default values.
+  `%?(NAME)s`, `%?(NAME)q`               for optional placeholders.
+  `%*s`, `%*q`                           for variable number of array items.
+  `%**s`, `%?**q`                        for variable number of key value pairs.
 
 RULES:
 
@@ -38,10 +40,16 @@ EXAMPLES:
   $ jf %q 1
   "1"
 
+  $ jf [%*s] 1 2 3
+  [1,2,3]
+
+  $ jf {%**q} one 1 two 2 three 3
+  {"one":"1","two":"2","three":"3"}
+
   $ jf "%q: %(value=default)q" foo value=bar
   {"foo":"bar"}
 
-  $ jf "{ str_or_bool: %?(str)q %?(bool)s, optional: %?(optional)q }" str=true
+  $ jf "{str_or_bool: %?(str)q %?(bool)s, optional: %?(optional)q}" str=true
   {"str_or_bool":"true","optional":null}
 
   $ jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
@@ -246,6 +254,69 @@ where
     Ok(())
 }
 
+fn read_var_arr_placeholder<'a, A>(
+    val: &mut String,
+    ch: char,
+    args: &mut A,
+) -> Result<(), Error>
+where
+    A: Iterator<Item = (usize, Cow<'a, str>)>,
+{
+    for (_, arg) in args {
+        if ch == 'q' {
+            val.push_str(&json::to_string(&arg)?);
+        } else {
+            val.push_str(&arg);
+        };
+        val.push(',');
+    }
+
+    if !val.is_empty() {
+        val.pop();
+    }
+    Ok(())
+}
+
+fn read_var_obj_placeholder<'a, A>(
+    val: &mut String,
+    ch: char,
+    col: usize,
+    args: &mut A,
+) -> Result<(), Error>
+where
+    A: Iterator<Item = (usize, Cow<'a, str>)>,
+{
+    let mut is_reading_key = true;
+    for (_, arg) in args {
+        let arg = if is_reading_key || ch == 'q' {
+            json::to_string(&arg)?
+        } else {
+            arg.to_string()
+        };
+
+        val.push_str(&arg);
+
+        if is_reading_key {
+            val.push(':');
+            is_reading_key = false;
+        } else {
+            val.push(',');
+            is_reading_key = true;
+        }
+    }
+
+    if !is_reading_key {
+        return Err(format!("placeholder missing value at column {col}")
+            .as_str()
+            .into());
+    }
+
+    if !val.is_empty() {
+        val.pop();
+    }
+    Ok(())
+}
+
 fn format_partial<'a, C, A>(
     chars: &mut C,
     args: &mut A,
@@ -259,6 +330,8 @@ where
     let mut is_reading_named_placeholders = false;
     let mut named_placeholders = HashMap::<String, String>::new();
     let mut is_optional = false;
+    let mut is_reading_var_arr = false;
+    let mut is_reading_var_obj = false;
 
     while let Some((col, ch)) = chars.next() {
         // Reading a named placeholder
@@ -278,6 +351,26 @@ where
                 val.push_str(VERSION);
                 last_char = None;
             }
+            (ch, Some('%')) | (ch, Some('*')) if ch == 's' || ch == 'q' => {
+                if is_reading_named_placeholders {
+                    return Err(
+                        format!("positional placeholder '%{ch}' at column {col} was used after named placeholders, use named placeholder syntax '%(NAME){ch}' instead")
+                        .as_str()
+                        .into()
+                    );
+                };
+
+                if is_reading_var_arr {
+                    read_var_arr_placeholder(&mut val, ch, args)?;
+                    is_reading_var_arr = false;
+                } else if is_reading_var_obj {
+                    read_var_obj_placeholder(&mut val, ch, col, args)?;
+                    is_reading_var_obj = false;
+                } else {
+                    read_positional_placeholder(&mut val, ch, col, args)?;
+                }
+                last_char = None;
+            }
             ('(', Some('%')) => {
                 if !is_reading_named_placeholders {
                     is_reading_named_placeholders = true;
@@ -290,20 +383,15 @@ where
                     is_optional,
                 )?;
                 last_char = None;
-                is_optional = false;
             }
-            (ch, Some('%')) if ch == 's' || ch == 'q' => {
-                if is_reading_named_placeholders {
-                    return Err(
-                        format!("positional placeholder '%{ch}' at column {col} was used after named placeholders, use named placeholder syntax '%(NAME){ch}' instead")
-                        .as_str()
-                        .into()
-                    );
-                };
-
-                read_positional_placeholder(&mut val, ch, col, args)?;
-                last_char = None;
-                is_optional = false;
+            ('*', Some('%')) => {
+                is_reading_var_arr = true;
+                last_char = Some(ch);
+            }
+            ('*', Some('*')) if is_reading_var_arr => {
+                is_reading_var_arr = false;
+                is_reading_var_obj = true;
+                last_char = Some(ch);
             }
             (_, Some('%')) => {
                 return Err(format!("invalid placeholder '%{ch}' at column {col}, use one of '%s' or '%q', or escape it using '%%'").as_str().into());
@@ -311,6 +399,9 @@ where
             (_, _) => {
                 val.push(ch);
                 last_char = None;
+                is_optional = false;
+                is_reading_var_arr = false;
+                is_reading_var_obj = false;
             }
         }
     }
