@@ -2,12 +2,12 @@
 
 [![Crate Status](https://img.shields.io/crates/v/jf.svg)](https://crates.io/crates/jf)
 
+[![Packaging status][repos]][repology]
+
 [jf][jf] is a [jo][jo] alternative, A small utility to safely format and print [JSON][json] objects in the commandline.
 
 However, unlike `jo`, where you build the JSON object by nesting `jo` outputs,
 `jf` works similar to `printf`, i.e. it expects the template in [YAML][yaml] format as the first argument, and then the values for the placeholders as subsequent arguments.
-
-[![Packaging status][repos]][repology]
 
 ### INSTALL
 
