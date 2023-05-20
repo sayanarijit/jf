@@ -7,7 +7,9 @@
 However, unlike `jo`, where you build the JSON object by nesting `jo` outputs,
 `jf` works similar to `printf`, i.e. it expects the template in [YAML][yaml] format as the first argument, and then the values for the placeholders as subsequent arguments.
 
-## Install
+[![Packaging status][repos]][repology]
+
+### INSTALL
 
 #### [Cargo][cargo]
 
@@ -29,31 +31,57 @@ cargo add jf
 nix-env -f https://github.com/NixOS/nixpkgs/tarball/nixos-unstable -iA jf
 ```
 
-Or [download binary from the latest release][bins].
+#### [Binaries][bins]
 
-## Usage
+### USAGE
 
-```bash
+```
 jf TEMPLATE [VALUE]... [NAME=VALUE]...
 ```
 
 Where TEMPLATE may contain the following placeholders:
 
-- `%q`, `%(NAME)q`, `%(NAME=DEFAULT)q` for quoted and safely escaped JSON string.
-- `%s`, `%(NAME)s`, `%(NAME=DEFAULT)s` for JSON values other than string.
+- `%q` for quoted and safely escaped JSON string.
+- `%s` for JSON values other than string.
+- `%v` for the `jf` version number.
+- `%%` for a literal `%` character.
 
 And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 
-- Use `%s` or `%q` syntax to declare positional placeholders.
-- Use `%(NAME)s` or `%(NAME)q` syntax to declare named placeholders.
-- Use `%(NAME=DEFAULT)s` or `%(NAME=DEFAULT)q` syntax to declare default values for named placeholders.
-- Use `%%` to escape a literal `%` character.
+### SYNTAX
+
+- `%s`, `%q` for posiitonal placeholders.
+- `%(NAME)s`, `%(NAME)q` for named placeholders.
+- `%(NAME=DEFAULT)s`, `%(NAME=DEFAULT)q` for placeholders with default values.
+- `%?(NAME)s`, `%?(NAME)q` for optional placeholders.
+
+### RULES
+
 - Pass values for positional placeholders in the same order as in the template.
 - Pass values for named placeholders using `NAME=VALUE` syntax.
 - Do not declare or pass positional placeholders or values after named ones.
-- To get the `jf` version number, run `jf %v`.
+- Nesting placeholders is prohibited.
 
-Example:
+### EXAMPLES
+
+```bash
+jf %s 1
+# 1
+
+jf %q 1
+# "1"
+
+jf "%q: %(value=default)q" foo value=bar
+# {"foo":"bar"}
+
+jf "{ str_or_bool: %?(str)q %?(bool)s, optional: %?(optional)q }" str=true
+# {"str_or_bool":"true","optional":null}
+
+jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
+# {"1":1,"two":"2","3":3,"four":"4","%":"100%"}
+```
+
+#### vs jo
 
 ```bash
 jf "hello: %q" world
@@ -73,7 +101,7 @@ jf "{a: {b: %s, c: {d: %s, f: %s}, d: {e: [%s, %q]}}, b: {e: [%q]}}" 0 1 true 2 
 # {"a":{"b":0,"c":{"d":1,"f":true},"d":{"e":[2,"sam"]}},"b":{"e":["hi"]}}
 ```
 
-### Rust Library
+#### Rust Library
 
 ```rust
 let json = match jf::format(["%q", "JSON Formatted"].map(Into::into)) {
@@ -86,10 +114,6 @@ let json = match jf::format(["%q", "JSON Formatted"].map(Into::into)) {
     Err(jf::Error::Yaml(e)) => bail!("mytool: yaml: {e}"),
 };
 ```
-
-## Packaging
-
-[![Packaging status][repos]][repology]
 
 [jf]: https://github.com/sayanarijit/jf
 [jo]: https://github.com/jpmens/jo
