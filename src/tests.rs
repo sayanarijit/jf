@@ -65,14 +65,14 @@ fn test_format_named_with_default() {
 
 #[test]
 fn test_format_optional() {
-    let args = [r#"{foo: %?(foo)q, bar: %?(bar)q}"#, "foo=foo"].map(Into::into);
+    let args = [r#"{foo: %(foo)?q, bar: %(bar)?q}"#, "foo=foo"].map(Into::into);
     assert_eq!(jf::format(args).unwrap(), r#"{"foo":"foo","bar":null}"#);
 
-    let args = [r#"{foo: %?(foo)q, bar: %?(bar)q}"#, "bar=bar"].map(Into::into);
+    let args = [r#"{foo: %(foo)?q, bar: %(bar)?q}"#, "bar=bar"].map(Into::into);
     assert_eq!(jf::format(args).unwrap(), r#"{"foo":null,"bar":"bar"}"#);
 
     let args = [
-        r#"{"null": %?(1)s %?(one)q, "2": %?(2)s %?(two)q, three: %?(3)s %?(three)q}"#,
+        r#"{"null": %(1)?s %(one)?q, "2": %(2)?s %(two)?q, three: %(3)?s %(three)?q}"#,
         "2=2",
         "three=3",
     ]
@@ -85,7 +85,10 @@ fn test_format_optional() {
 }
 
 #[test]
-fn test_format_var_arr() {
+fn test_format_positional_var_arr() {
+    let args = [r#"[%*s]"#].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"[]"#);
+
     let args = [r#"{foo: [1, %*s, 4]}"#, "2", "3"].map(Into::into);
     assert_eq!(jf::format(args).unwrap(), r#"{"foo":[1,2,3,4]}"#);
 
@@ -94,7 +97,10 @@ fn test_format_var_arr() {
 }
 
 #[test]
-fn test_format_var_obj() {
+fn test_format_positional_var_obj() {
+    let args = [r#"{%**s}"#].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{}"#);
+
     let args = [r#"{foo: bar, %**s, 2: 2}"#, "1", "1"].map(Into::into);
     assert_eq!(jf::format(args).unwrap(), r#"{"foo":"bar","1":1,"2":2}"#);
 
@@ -106,12 +112,67 @@ fn test_format_var_obj() {
 }
 
 #[test]
+fn test_format_named_var_arr() {
+    let args = [r#"[%(foo)*s]"#].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"[]"#);
+
+    let args = [
+        r#"[%(foo)s, %(bar)q, %(foo)*s, %(bar)*q]"#,
+        "foo=1",
+        "foo=2",
+        "bar=3",
+        "bar=4",
+    ]
+    .map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"[1,"3",1,2,"3","4"]"#);
+}
+
+#[test]
+fn test_format_named_var_obj() {
+    let args = [r#"{%(foo)**s}"#].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{}"#);
+
+    let args = [
+        r#"{foo: %(foo)s, bar: %(bar)q, %(foo)**s, %(bar)**q}"#,
+        "foo=one",
+        "foo=1",
+        "foo=two",
+        "foo=2",
+        "bar=three",
+        "bar=3",
+        "bar=four",
+        "bar=4",
+    ]
+    .map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap(),
+        r#"{"foo":"one","bar":"three","one":1,"two":2,"three":"3","four":"4"}"#
+    );
+}
+
+#[test]
 fn test_optional_placeholder_with_default_value_error() {
-    let args = [r#"%?(foo=bar)q"#].map(Into::into);
+    let args = [r#"%(foo=bar)?q"#].map(Into::into);
 
     assert_eq!(
         jf::format(args).unwrap_err().to_string(),
-        "jf: optional placeholder 'foo' at column 6 cannot have a default value"
+        "jf: optional placeholder 'foo' at column 10 cannot have a default value"
+    );
+}
+
+#[test]
+fn test_named_expandable_placeholder_with_default_value_error() {
+    let args = [r#"%(foo=default)*q"#].map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: expandable placeholder 'foo' at column 15 cannot have a default value"
+    );
+
+    let args = [r#"%(foo=default)**q"#].map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: expandable placeholder 'foo' at column 16 cannot have a default value"
     );
 }
 
@@ -193,9 +254,12 @@ fn test_incomplete_placeholder_error() {
         "%()",
         "%(foo",
         "%(foo)",
+        "%(foo)?",
+        "%(foo)*",
         "%(foo=",
         "%(foo=bar",
         "%(foo=bar)",
+        "%(foo=bar)*",
     ] {
         assert_eq!(
             jf::format([arg].map(Into::into)).unwrap_err().to_string(),
@@ -309,8 +373,67 @@ fn test_invalid_named_placeholder_error() {
     );
 }
 
+// jf %s 1
+// # 1
+//
+// jf %q 1
+// # "1"
+//
+// jf [%*s] 1 2 3
+// # [1,2,3]
+//
+// jf {%**q} one 1 two 2 three 3
+// # {"one":"1","two":"2","three":"3"}
+//
+// jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
+// # {"foo":"bar","biz","buz"}
+//
+// jf "{str_or_bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
+// # {"str_or_bool":"true","optional":null}
+//
+// jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
+// # {"1":1,"two":"2","3":3,"four":"4","%":"100%"}
+
 #[test]
 fn test_usage_example() {
+    let args = ["%s", "1"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap().to_string(), "1");
+
+    let args = ["%q", "1"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap().to_string(), r#""1""#);
+
+    let args = ["[%*s]", "1", "2", "3"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap().to_string(), "[1,2,3]");
+
+    let args = ["{%**q}", "one", "1", "two", "2", "three", "3"].map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap().to_string(),
+        r#"{"one":"1","two":"2","three":"3"}"#
+    );
+
+    let args = [
+        "{%q: %(value=default)q, %(bar)**q}",
+        "foo",
+        "value=bar",
+        "bar=biz",
+        "bar=baz",
+    ]
+    .map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap().to_string(),
+        r#"{"foo":"bar","biz":"baz"}"#
+    );
+
+    let args = [
+        "{str_or_bool: %(str)?q %(bool)?s, optional: %(optional)?q}",
+        "str=true",
+    ]
+    .map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap().to_string(),
+        r#"{"str_or_bool":"true","optional":null}"#
+    );
+
     let args = [
         r#"{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}"#,
         "1",
@@ -319,7 +442,6 @@ fn test_usage_example() {
         "pct=100%",
     ]
     .map(Into::into);
-
     assert_eq!(
         jf::format(args).unwrap().to_string(),
         r#"{"1":1,"two":"2","3":3,"four":"4","%":"100%"}"#
@@ -329,14 +451,14 @@ fn test_usage_example() {
 #[test]
 fn test_print_version() {
     let arg = ["jf v%v"].map(Into::into);
-    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.2.7""#);
+    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.3.0""#);
 
     let args =
         ["{foo: %q, bar: %(bar)q, version: %v}", "foo", "bar=bar"].map(Into::into);
 
     assert_eq!(
         jf::format(args).unwrap().to_string(),
-        r#"{"foo":"foo","bar":"bar","version":"0.2.7"}"#
+        r#"{"foo":"foo","bar":"bar","version":"0.3.0"}"#
     );
 }
 
