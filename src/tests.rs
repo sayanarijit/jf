@@ -329,13 +329,13 @@ fn test_usage_example() {
 #[test]
 fn test_print_version() {
     let arg = ["jf v%v"].map(Into::into);
-    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.2.6""#);
+    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.2.7""#);
 
     let args =
         ["{foo: %q, bar: %(bar)q, version: %v}", "foo", "bar=bar"].map(Into::into);
 
     assert_eq!(
         jf::format(args).unwrap().to_string(),
-        r#"{"foo":"foo","bar":"bar","version":"0.2.6"}"#
+        r#"{"foo":"foo","bar":"bar","version":"0.2.7"}"#
     );
 }
