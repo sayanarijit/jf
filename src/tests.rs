@@ -85,6 +85,27 @@ fn test_format_optional() {
 }
 
 #[test]
+fn test_format_var_arr() {
+    let args = [r#"{foo: [1, %*s, 4]}"#, "2", "3"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"foo":[1,2,3,4]}"#);
+
+    let args = [r#"{foo: [1, %*q, 4]}"#, "2", "3"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"foo":[1,"2","3",4]}"#);
+}
+
+#[test]
+fn test_format_var_obj() {
+    let args = [r#"{foo: bar, %**s, 2: 2}"#, "1", "1"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"foo":"bar","1":1,"2":2}"#);
+
+    let args = [r#"{foo: {%**q, 3: 3}}"#, "one", "1", "two", "2"].map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap(),
+        r#"{"foo":{"one":"1","two":"2","3":3}}"#
+    );
+}
+
+#[test]
 fn test_optional_placeholder_with_default_value_error() {
     let args = [r#"%?(foo=bar)q"#].map(Into::into);
 
@@ -124,6 +145,13 @@ fn test_missing_value_error() {
     assert_eq!(
         jf::format(args).unwrap_err().to_string(),
         "jf: placeholder missing value at column 61"
+    );
+
+    let args = [r#"{%**q}"#, "1"].map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: placeholder missing value at column 4"
     );
 }
 
@@ -180,7 +208,7 @@ fn test_incomplete_placeholder_error() {
 fn test_not_enough_arguments_error() {
     let usage_err = jf::format([]).unwrap_err().to_string();
     assert!(usage_err.contains("not enough arguments"));
-    assert!(usage_err.contains("USAGE: jf TEMPLATE [VALUE]... [NAME=VALUE]..."));
+    assert!(usage_err.contains("jf TEMPLATE [VALUE]... [NAME=VALUE]..."));
 }
 
 #[test]
@@ -301,13 +329,31 @@ fn test_usage_example() {
 #[test]
 fn test_print_version() {
     let arg = ["jf v%v"].map(Into::into);
-    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.2.6""#);
+    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.2.7""#);
 
     let args =
         ["{foo: %q, bar: %(bar)q, version: %v}", "foo", "bar=bar"].map(Into::into);
 
     assert_eq!(
         jf::format(args).unwrap().to_string(),
-        r#"{"foo":"foo","bar":"bar","version":"0.2.6"}"#
+        r#"{"foo":"foo","bar":"bar","version":"0.2.7"}"#
     );
+}
+
+#[test]
+fn update_manpage() {
+    std::fs::write("assets/jf.txt", jf::USAGE).unwrap();
+    let man = std::process::Command::new("txt2man")
+        .arg("-P")
+        .arg("jf")
+        .arg("-t")
+        .arg("jf")
+        .arg("-d")
+        .arg("1")
+        .arg("jf")
+        .arg("assets/jf.txt")
+        .output()
+        .unwrap()
+        .stdout;
+    std::fs::write("assets/jf.1", man).unwrap();
 }
