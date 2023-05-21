@@ -41,10 +41,10 @@ EXAMPLES
   - Out: "1"
 
   - Run: jf [%*s] 1 2 3
-  - Run: [1,2,3]
+  - Out: [1,2,3]
 
   - Run: jf {%**q} one 1 two 2 three 3
-  - Run: {"one":"1","two":"2","three":"3"}
+  - Out: {"one":"1","two":"2","three":"3"}
 
   - Run: jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
   - Out: {"foo":"bar","biz":"baz"}
@@ -54,3 +54,23 @@ EXAMPLES
 
   - Run: jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}' 1 2 3=3
   - Out: {"1":1,"two":"2","3":3,"four":"4","%":null}
+
+USEFUL ALIASES
+
+  - alias str='jf %q'
+  - alias arr='jf "[%*s]"'
+  - alias obj='jf "{%**s}"'
+
+ALIAS USAGE
+
+  - Run: str 1
+  - Out: "1"
+
+  - Run: arr 1 2 3
+  - Out: [1,2,3]
+
+  - Run: obj one 1 two 2 three 3
+  - Out: {"one":1,"two":2,"three":3}
+
+  - Run: obj 1 2 3 $(arr 4 $(str 5))
+  - Out: {"1":2,"3":[4,"5"]}

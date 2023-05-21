@@ -41,23 +41,23 @@ jf TEMPLATE [VALUE]... [NAME=VALUE]...
 
 Where TEMPLATE may contain the following placeholders:
 
-- `%q` quoted and safely escaped JSON string.
-- `%s` JSON values other than string.
-- `%v` the `jf` version number.
-- `%%` a literal `%` character.
+- `%q` quoted and safely escaped JSON string
+- `%s` JSON values other than string
+- `%v` the `jf` version number
+- `%%` a literal `%` character
 
 And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 
 ### SYNTAX
 
-- `%s`, `%q` posiitonal placeholder.
-- `%(NAME)s`, `%(NAME)q` named placeholder.
-- `%(NAME=DEFAULT)s`, `%(NAME=DEFAULT)q` placeholder with default value.
-- `%(NAME)?s`, `%(NAME)?q` placeholder with optional value.
-- `%*s`, `%*q` expand positional values as array items.
-- `%**s`, `%**q` expand positional values as key value pairs.
-- `%(NAME)*s`, `%(NAME)*q` expand named values as array items.
-- `%(NAME)**s`, `%(NAME)**q` expand named values as key value pairs.
+- `%s` `%q` posiitonal placeholder
+- `%(NAME)s` `%(NAME)q` named placeholder
+- `%(NAME=DEFAULT)s` `%(NAME=DEFAULT)q` placeholder with default value
+- `%(NAME)?s` `%(NAME)?q` placeholder with optional value
+- `%*s` `%*q` expand positional values as array items
+- `%**s` `%**q` expand positional values as key value pairs
+- `%(NAME)*s` `%(NAME)*q` expand named values as array items
+- `%(NAME)**s` `%(NAME)**q` expand named values as key value pairs
 
 ### RULES
 
@@ -72,30 +72,37 @@ And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 ### EXAMPLES
 
 ```bash
+jf %s 1
+# 1
 
-  jf %s 1
-  # 1
+jf %q 1
+# "1"
 
-  jf %q 1
-  # "1"
+jf [%*s] 1 2 3
+# [1,2,3]
 
-  jf [%*s] 1 2 3
-  # [1,2,3]
+jf {%**q} one 1 two 2 three 3
+# {"one":"1","two":"2","three":"3"}
 
-  jf {%**q} one 1 two 2 three 3
-  # {"one":"1","two":"2","three":"3"}
+jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
+# {"foo":"bar","biz":"baz"}
 
-  jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
-  # {"foo":"bar","biz":"baz"}
+jf "{str or bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
+# {"str or bool":"true","optional":null}
 
-  jf "{str or bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
-  # {"str or bool":"true","optional":null}
-
-  jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}' 1 2 3=3
-  # {"1":1,"two":"2","3":3,"four":"4","%":null}
+jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}' 1 2 3=3
+# {"1":1,"two":"2","3":3,"four":"4","%":null}
 ```
 
-#### Rust Library
+### USEFUL ALIASES
+
+```bash
+alias str='jf %q'
+alias arr='jf "[%*s]"'
+alias obj='jf "{%**s}"'
+```
+
+### RUST LIBRARY
 
 ```rust
 let json = match jf::format(["%q", "JSON Formatted"].map(Into::into)) {

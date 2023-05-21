@@ -86,11 +86,11 @@ Out: "1"
 .IP \(bu 3
 Run: jf [%*s] 1 2 3
 .IP \(bu 3
-Run: [1,2,3]
+Out: [1,2,3]
 .IP \(bu 3
 Run: jf {%**q} one 1 two 2 three 3
 .IP \(bu 3
-Run: {"one":"1","two":"2","three":"3"}
+Out: {"one":"1","two":"2","three":"3"}
 .IP \(bu 3
 Run: jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
 .IP \(bu 3
@@ -103,3 +103,29 @@ Out: {"str or bool":"true","optional":null}
 Run: jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}' 1 2 3=3
 .IP \(bu 3
 Out: {"1":1,"two":"2","3":3,"four":"4","%":null}
+.SH USEFUL ALIASES
+
+.IP \(bu 3
+alias str='jf %q'
+.IP \(bu 3
+alias arr='jf "[%*s]"'
+.IP \(bu 3
+alias obj='jf "{%**s}"'
+.SH ALIAS USAGE
+
+.IP \(bu 3
+Run: str 1
+.IP \(bu 3
+Out: "1"
+.IP \(bu 3
+Run: arr 1 2 3
+.IP \(bu 3
+Out: [1,2,3]
+.IP \(bu 3
+Run: obj one 1 two 2 three 3
+.IP \(bu 3
+Out: {"one":1,"two":2,"three":3}
+.IP \(bu 3
+Run: obj 1 2 3 $(arr 4 $(str 5))
+.IP \(bu 3
+Out: {"1":2,"3":[4,"5"]}
