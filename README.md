@@ -94,7 +94,9 @@ jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}' 1 2 3=3
 # {"1":1,"two":"2","3":3,"four":"4","%":null}
 ```
 
-### USEFUL ALIASES
+### SHELL ALIASES
+
+You can set the following aliases in your shell:
 
 ```bash
 alias str='jf %q'
@@ -102,7 +104,7 @@ alias arr='jf "[%*s]"'
 alias obj='jf "{%**s}"'
 ```
 
-### ALIAS USAGE
+Then you can use them like this:
 
 ```bash
 str 1

@@ -103,16 +103,17 @@ Out: {"str or bool":"true","optional":null}
 Run: jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}' 1 2 3=3
 .IP \(bu 3
 Out: {"1":1,"two":"2","3":3,"four":"4","%":null}
-.SH USEFUL ALIASES
+.SH SHELL ALIASES
 
+You can set the following aliases in your shell:
 .IP \(bu 3
 alias str='jf %q'
 .IP \(bu 3
 alias arr='jf "[%*s]"'
 .IP \(bu 3
 alias obj='jf "{%**s}"'
-.SH ALIAS USAGE
-
+.PP
+Then you can use them like this:
 .IP \(bu 3
 Run: str 1
 .IP \(bu 3
