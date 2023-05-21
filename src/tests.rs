@@ -373,27 +373,6 @@ fn test_invalid_named_placeholder_error() {
     );
 }
 
-// jf %s 1
-// # 1
-//
-// jf %q 1
-// # "1"
-//
-// jf [%*s] 1 2 3
-// # [1,2,3]
-//
-// jf {%**q} one 1 two 2 three 3
-// # {"one":"1","two":"2","three":"3"}
-//
-// jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
-// # {"foo":"bar","biz","buz"}
-//
-// jf "{str_or_bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
-// # {"str_or_bool":"true","optional":null}
-//
-// jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
-// # {"1":1,"two":"2","3":3,"four":"4","%":"100%"}
-
 #[test]
 fn test_usage_example() {
     let args = ["%s", "1"].map(Into::into);
@@ -425,13 +404,13 @@ fn test_usage_example() {
     );
 
     let args = [
-        "{str_or_bool: %(str)?q %(bool)?s, optional: %(optional)?q}",
+        "{str or bool: %(str)?q %(bool)?s, optional: %(optional)?q}",
         "str=true",
     ]
     .map(Into::into);
     assert_eq!(
         jf::format(args).unwrap().to_string(),
-        r#"{"str_or_bool":"true","optional":null}"#
+        r#"{"str or bool":"true","optional":null}"#
     );
 
     let args = [
@@ -465,7 +444,6 @@ fn test_print_version() {
 #[cfg(feature = "manpage")]
 #[test]
 fn update_manpage() {
-    std::fs::write("assets/jf.txt", jf::USAGE.trim()).unwrap();
     let man = std::process::Command::new("txt2man")
         .arg("-P")
         .arg("jf")
@@ -474,7 +452,7 @@ fn update_manpage() {
         .arg("-d")
         .arg("1")
         .arg("jf")
-        .arg("assets/jf.txt")
+        .arg("./src/usage.txt")
         .output()
         .unwrap()
         .stdout;

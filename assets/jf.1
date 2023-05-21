@@ -8,52 +8,55 @@ Where TEMPLATE may contain the following placeholders:
 .TP
 .B
 `%q`
-quoted and safely escaped JSON string.
+quoted and safely escaped JSON string
 .TP
 .B
 `%s`
-JSON values other than string.
+JSON values other than string
 .TP
 .B
 `%v`
-the `jf` version number.
+the `jf` version number
 .TP
 .B
 `%%`
-a literal `%` character.
+a literal `%` character
 .PP
 And [VALUE]\.\.\. [NAME=VALUE]\.\.\. are the values for the placeholders.
 .SH SYNTAX
 
 .TP
 .B
-`%s`, `%q`
-posiitonal placeholder.
+`%s`
+`%q`                posiitonal placeholder
 .TP
 .B
-`%(NAME)s`, `%(NAME)q`
-named placeholder.
-`%(NAME=DEFAULT)s`, `%(NAME=DEFAULT)q` placeholder with default value.
+`%(NAME)s`
+`%(NAME)q`          named placeholder
 .TP
 .B
-`%(NAME)?s`, `%(NAME)?q`
-placeholder with optional value.
+`%(NAME=DEFAULT)s`
+`%(NAME=DEFAULT)q`  placeholder with default value
 .TP
 .B
-`%*s`, `%*q`
-expand positional values as array items.
+`%(NAME)?s`
+`%(NAME)?q`         placeholder with optional value
 .TP
 .B
-`%**s`, `%**q`
-expand positional values as key value pairs.
+`%*s`
+`%*q`               expand positional values as array items
 .TP
 .B
-`%(NAME)*s`, `%(NAME)*q`
-expand named values as array items.
+`%**s`
+`%**q`              expand positional values as key value pairs
 .TP
 .B
-`%(NAME)**s`, `%(NAME)**q`
-expand named values as key value pairs.
+`%(NAME)*s`
+`%(NAME)*q`         expand named values as array items
+.TP
+.B
+`%(NAME)**s`
+`%(NAME)**q`        expand named values as key value pairs
 .SH RULES
 
 .IP \(bu 3
@@ -72,27 +75,31 @@ Do not declare or pass positional placeholders or values after named ones.
 Expandable positional placeholder should be the last placeholder in a template.
 .SH EXAMPLES
 
-$ jf %s 1
-.SS  - 1
-
-$ jf %q 1
-.SS  - "1"
-
-$ jf [%*s] 1 2 3
-.SS  - [1,2,3]
-
-$ jf {%**q} one 1 two 2 three 3
 .IP \(bu 3
-{"one":"1","two":"2","three":"3"}
-.PP
-$ jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
+Run: jf %s 1
 .IP \(bu 3
-{"foo":"bar","biz":"baz"}
-.PP
-$ jf "{str_or_bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
+Out: 1
 .IP \(bu 3
-{"str_or_bool":"true","optional":null}
-.PP
-$ jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
+Run: jf %q 1
 .IP \(bu 3
-{"1":1,"two":"2","3":3,"four":"4","%":"100%"}
+Out: "1"
+.IP \(bu 3
+Run: jf [%*s] 1 2 3
+.IP \(bu 3
+Run: [1,2,3]
+.IP \(bu 3
+Run: jf {%**q} one 1 two 2 three 3
+.IP \(bu 3
+Run: {"one":"1","two":"2","three":"3"}
+.IP \(bu 3
+Run: jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
+.IP \(bu 3
+Out: {"foo":"bar","biz":"baz"}
+.IP \(bu 3
+Run: jf "{str or bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
+.IP \(bu 3
+Out: {"str or bool":"true","optional":null}
+.IP \(bu 3
+Run: jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
+.IP \(bu 3
+Out: {"1":1,"two":"2","3":3,"four":"4","%":"100%"}
