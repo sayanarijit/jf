@@ -414,16 +414,15 @@ fn test_usage_example() {
     );
 
     let args = [
-        r#"{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}"#,
+        r#"{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}"#,
         "1",
         "2",
         "3=3",
-        "pct=100%",
     ]
     .map(Into::into);
     assert_eq!(
         jf::format(args).unwrap().to_string(),
-        r#"{"1":1,"two":"2","3":3,"four":"4","%":"100%"}"#
+        r#"{"1":1,"two":"2","3":3,"four":"4","%":null}"#
     );
 }
 

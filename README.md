@@ -88,11 +88,11 @@ And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
   jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
   # {"foo":"bar","biz":"baz"}
 
-  jf "{str_or_bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
-  # {"str_or_bool":"true","optional":null}
+  jf "{str or bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
+  # {"str or bool":"true","optional":null}
 
-  jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
-  # {"1":1,"two":"2","3":3,"four":"4","%":"100%"}
+  jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}' 1 2 3=3
+  # {"1":1,"two":"2","3":3,"four":"4","%":null}
 ```
 
 #### Rust Library

@@ -100,6 +100,6 @@ Run: jf "{str or bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
 .IP \(bu 3
 Out: {"str or bool":"true","optional":null}
 .IP \(bu 3
-Run: jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
+Run: jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}' 1 2 3=3
 .IP \(bu 3
-Out: {"1":1,"two":"2","3":3,"four":"4","%":"100%"}
+Out: {"1":1,"two":"2","3":3,"four":"4","%":null}

@@ -52,5 +52,5 @@ EXAMPLES
   - Run: jf "{str or bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
   - Out: {"str or bool":"true","optional":null}
 
-  - Run: jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)q}' 1 2 3=3 pct=100%
-  - Out: {"1":1,"two":"2","3":3,"four":"4","%":"100%"}
+  - Run: jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}' 1 2 3=3
+  - Out: {"1":1,"two":"2","3":3,"four":"4","%":null}
