@@ -102,6 +102,22 @@ alias arr='jf "[%*s]"'
 alias obj='jf "{%**s}"'
 ```
 
+### ALIAS USAGE
+
+```bash
+str 1
+# "1"
+
+arr 1 2 3
+# [1,2,3]
+
+obj one 1 two 2 three 3
+# {"one":1,"two":2,"three":3}
+
+obj 1 2 3 $(arr 4 $(str 5))
+# {"1":2,"3":[4,"5"]}
+```
+
 ### RUST LIBRARY
 
 ```rust
