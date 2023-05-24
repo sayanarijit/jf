@@ -53,7 +53,8 @@ And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 - `%s` `%q` posiitonal placeholder
 - `%(NAME)s` `%(NAME)q` named placeholder
 - `%(NAME=DEFAULT)s` `%(NAME=DEFAULT)q` placeholder with default value
-- `%(NAME)?s` `%(NAME)?q` placeholder with optional value
+- `%(NAME?)s` `%(NAME?)q` nullable placeholder that defaults to `null`
+- `%(NAME)?s` `%(NAME)?q` optional placeholder that defaults to blank
 - `%*s` `%*q` expand positional values as array items
 - `%**s` `%**q` expand positional values as key value pairs
 - `%(NAME)*s` `%(NAME)*q` expand named values as array items
@@ -65,7 +66,6 @@ And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
 - Pass values for named placeholders using `NAME=VALUE` syntax.
 - Pass values for named array items using `NAME=ITEM_N` syntax.
 - Pass values for named key value pairs using `NAME=KEY_N NAME=VALUE_N` syntax.
-- Optional placeholders default to empty string, which is considered as null.
 - Do not declare or pass positional placeholders or values after named ones.
 - Expandable positional placeholder should be the last placeholder in a template.
 
@@ -87,10 +87,11 @@ jf {%**q} one 1 two 2 three 3
 jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
 # {"foo":"bar","biz":"baz"}
 
-jf "{str or bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
-# {"str or bool":"true","optional":null}
 
-jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}' 1 2 3=3
+jf "{str or bool: %(str)?q %(bool)?s, nullable: %(nullable?)q}" str=true
+# {"str or bool":"true","nullable":null}
+
+jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct?)q}' 1 2 3=3
 # {"1":1,"two":"2","3":3,"four":"4","%":null}
 ```
 

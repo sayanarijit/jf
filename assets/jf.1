@@ -28,35 +28,36 @@ And [VALUE]\.\.\. [NAME=VALUE]\.\.\. are the values for the placeholders.
 .TP
 .B
 `%s`
-`%q`                posiitonal placeholder
+`%q`               posiitonal placeholder
 .TP
 .B
 `%(NAME)s`
-`%(NAME)q`          named placeholder
+`%(NAME)q`         named placeholder
+`%(NAME=DEFAULT)s` `%(NAME=DEFAULT)q` placeholder with default value
 .TP
 .B
-`%(NAME=DEFAULT)s`
-`%(NAME=DEFAULT)q`  placeholder with default value
+`%(NAME?)s`
+`%(NAME?)q`        optional placeholder that defaults to `null`
 .TP
 .B
 `%(NAME)?s`
-`%(NAME)?q`         placeholder with optional value
+`%(NAME)?q`        nullable placeholder that defaults to blank
 .TP
 .B
 `%*s`
-`%*q`               expand positional values as array items
+`%*q`              expand positional values as array items
 .TP
 .B
 `%**s`
-`%**q`              expand positional values as key value pairs
+`%**q`             expand positional values as key value pairs
 .TP
 .B
 `%(NAME)*s`
-`%(NAME)*q`         expand named values as array items
+`%(NAME)*q`        expand named values as array items
 .TP
 .B
 `%(NAME)**s`
-`%(NAME)**q`        expand named values as key value pairs
+`%(NAME)**q`       expand named values as key value pairs
 .SH RULES
 
 .IP \(bu 3
@@ -67,8 +68,6 @@ Pass values for named placeholders using `NAME=VALUE` syntax.
 Pass values for named array items using `NAME=ITEM_N` syntax.
 .IP \(bu 3
 Pass values for named key value pairs using `NAME=KEY_N NAME=VALUE_N` syntax.
-.IP \(bu 3
-Optional placeholders default to empty string, which is considered as null.
 .IP \(bu 3
 Do not declare or pass positional placeholders or values after named ones.
 .IP \(bu 3
@@ -96,11 +95,11 @@ Run: jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
 .IP \(bu 3
 Out: {"foo":"bar","biz":"baz"}
 .IP \(bu 3
-Run: jf "{str or bool: %(str)?q %(bool)?s, optional: %(optional)?q}" str=true
+Run: jf "{str or bool: %(str)?q %(bool)?s, nullable: %(nullable?)q}" str=true
 .IP \(bu 3
-Out: {"str or bool":"true","optional":null}
+Out: {"str or bool":"true","nullable":null}
 .IP \(bu 3
-Run: jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}' 1 2 3=3
+Run: jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct?)q}' 1 2 3=3
 .IP \(bu 3
 Out: {"1":1,"two":"2","3":3,"four":"4","%":null}
 .SH SHELL ALIASES
