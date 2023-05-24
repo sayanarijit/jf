@@ -13,15 +13,15 @@ USAGE
 
 SYNTAX
 
-  `%s`               `%q`               posiitonal placeholder
-  `%(NAME)s`         `%(NAME)q`         named placeholder
-  `%(NAME=DEFAULT)s` `%(NAME=DEFAULT)q` placeholder with default value
-  `%(NAME?)s`        `%(NAME?)q`        optional placeholder that defaults to `null`
-  `%(NAME)?s`        `%(NAME)?q`        nullable placeholder that defaults to blank
-  `%*s`              `%*q`              expand positional values as array items
-  `%**s`             `%**q`             expand positional values as key value pairs
-  `%(NAME)*s`        `%(NAME)*q`        expand named values as array items
-  `%(NAME)**s`       `%(NAME)**q`       expand named values as key value pairs
+  `%s`                `%q`                posiitonal placeholder
+  `%(NAME)s`          `%(NAME)q`          named placeholder
+  `%(NAME=DEFAULT)s`  `%(NAME=DEFAULT)q`  placeholder with default value
+  `%(NAME?)s`         `%(NAME?)q`         nullable placeholder that defaults to `null`
+  `%(NAME)?s`         `%(NAME)?q`         optional placeholder that defaults to blank
+  `%*s`               `%*q`               expand positional values as array items
+  `%**s`              `%**q`              expand positional values as key value pairs
+  `%(NAME)*s`         `%(NAME)*q`         expand named values as array items
+  `%(NAME)**s`        `%(NAME)**q`        expand named values as key value pairs
 
 RULES
 

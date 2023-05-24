@@ -28,36 +28,39 @@ And [VALUE]\.\.\. [NAME=VALUE]\.\.\. are the values for the placeholders.
 .TP
 .B
 `%s`
-`%q`               posiitonal placeholder
+`%q`                posiitonal placeholder
 .TP
 .B
 `%(NAME)s`
-`%(NAME)q`         named placeholder
-`%(NAME=DEFAULT)s` `%(NAME=DEFAULT)q` placeholder with default value
+`%(NAME)q`          named placeholder
+.TP
+.B
+`%(NAME=DEFAULT)s`
+`%(NAME=DEFAULT)q`  placeholder with default value
 .TP
 .B
 `%(NAME?)s`
-`%(NAME?)q`        optional placeholder that defaults to `null`
+`%(NAME?)q`         nullable placeholder that defaults to `null`
 .TP
 .B
 `%(NAME)?s`
-`%(NAME)?q`        nullable placeholder that defaults to blank
+`%(NAME)?q`         optional placeholder that defaults to blank
 .TP
 .B
 `%*s`
-`%*q`              expand positional values as array items
+`%*q`               expand positional values as array items
 .TP
 .B
 `%**s`
-`%**q`             expand positional values as key value pairs
+`%**q`              expand positional values as key value pairs
 .TP
 .B
 `%(NAME)*s`
-`%(NAME)*q`        expand named values as array items
+`%(NAME)*q`         expand named values as array items
 .TP
 .B
 `%(NAME)**s`
-`%(NAME)**q`       expand named values as key value pairs
+`%(NAME)**q`        expand named values as key value pairs
 .SH RULES
 
 .IP \(bu 3
