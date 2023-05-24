@@ -103,6 +103,7 @@ where
     let mut name = "".to_string();
     let mut default_value: Option<String> = None;
     let mut is_optional = false;
+    let mut is_nullable = false;
     let mut is_reading_expandable_items = false;
     let mut is_reading_expandable_pairs = false;
 
@@ -123,7 +124,17 @@ where
                 if default_value.is_some() {
                     return Err(format!("optional placeholder '{name}' at column {col} cannot have a default value").as_str().into());
                 }
+                if is_nullable {
+                    return Err(format!("optional placeholder '{name}' at column {col} cannot also be nullable").as_str().into());
+                }
                 is_optional = true;
+            }
+            ('?', None) => {
+                is_nullable = true;
+                last_char = chars.next().map(|(_, ch)| ch);
+                if last_char != Some(')') {
+                    return Err(format!("nullable placeholder '{name}' at column {col} must end with '?)'", col = col).as_str().into());
+                }
             }
             ('*', Some(')')) => {
                 is_reading_expandable_items = true;
@@ -152,6 +163,8 @@ where
                     } else {
                         val.push_str(value);
                     }
+                } else if is_nullable {
+                    val.push_str("null");
                 } else if !is_optional {
                     return Err(format!(
                         "no value for placeholder '%({name}){ch}' at column {col}"

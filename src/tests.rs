@@ -161,6 +161,16 @@ fn test_optional_placeholder_with_default_value_error() {
 }
 
 #[test]
+fn test_nullable_placeholder_must_end_with_error() {
+    let args = [r#"%(foo?bar)q"#].map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: nullable placeholder 'foo' at column 5 must end with '?)'"
+    );
+}
+
+#[test]
 fn test_named_expandable_placeholder_with_default_value_error() {
     let args = [r#"%(foo=default)*q"#].map(Into::into);
 
@@ -328,7 +338,7 @@ fn test_no_value_for_placeholder_name_error() {
 
 #[test]
 fn test_invalid_character_in_placeholder_name_error() {
-    for ch in [' ', '\t', '\n', '\r', '\0', '\'', '"', '{', '}', '?'].iter() {
+    for ch in [' ', '\t', '\n', '\r', '\0', '\'', '"', '{', '}'].iter() {
         let args = [format!("%(foo{ch}bar)s)")].map(Into::into);
         assert_eq!(
             jf::format(args.clone()).unwrap_err().to_string(),
@@ -404,17 +414,17 @@ fn test_usage_example() {
     );
 
     let args = [
-        "{str or bool: %(str)?q %(bool)?s, optional: %(optional)?q}",
+        "{str or bool: %(str)?q %(bool)?s, nullable: %(nullable?)q}",
         "str=true",
     ]
     .map(Into::into);
     assert_eq!(
         jf::format(args).unwrap().to_string(),
-        r#"{"str or bool":"true","optional":null}"#
+        r#"{"str or bool":"true","nullable":null}"#
     );
 
     let args = [
-        r#"{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct)?q}"#,
+        r#"{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct?)q}"#,
         "1",
         "2",
         "3=3",
@@ -429,14 +439,14 @@ fn test_usage_example() {
 #[test]
 fn test_print_version() {
     let arg = ["jf v%v"].map(Into::into);
-    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.3.1""#);
+    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.3.2""#);
 
     let args =
         ["{foo: %q, bar: %(bar)q, version: %v}", "foo", "bar=bar"].map(Into::into);
 
     assert_eq!(
         jf::format(args).unwrap().to_string(),
-        r#"{"foo":"foo","bar":"bar","version":"0.3.1"}"#
+        r#"{"foo":"foo","bar":"bar","version":"0.3.2"}"#
     );
 }
 
