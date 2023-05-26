@@ -36,7 +36,7 @@ nix-env -f https://github.com/NixOS/nixpkgs/tarball/nixos-unstable -iA jf
 ### USAGE
 
 ```bash
-jf TEMPLATE [VALUE]... [NAME=VALUE]...
+jf TEMPLATE [VALUE]... [NAME=VALUE]... [NAME@FILE]...
 ```
 
 Where TEMPLATE may contain the following placeholders:
@@ -46,26 +46,33 @@ Where TEMPLATE may contain the following placeholders:
 - `%v` the `jf` version number
 - `%%` a literal `%` character
 
-And [VALUE]... [NAME=VALUE]... are the values for the placeholders.
+And [VALUE]... [NAME=VALUE]... [NAME@FILE]... are the values for the placeholders.
 
 ### SYNTAX
 
-- `%s` `%q` posiitonal placeholder
-- `%(NAME)s` `%(NAME)q` named placeholder
+- `%s` `%q` read positional argument
+- `%-s` `%-q` read stdin
+- `%(NAME)s` `%(NAME)q` read named value from argument
 - `%(NAME=DEFAULT)s` `%(NAME=DEFAULT)q` placeholder with default value
-- `%(NAME?)s` `%(NAME?)q` nullable placeholder that defaults to `null`
+- `%(NAME@FILE)s` `%(NAME@FILE)q` read default value from file path
+- `%(NAME@-)s` `%(NAME@-)q` read default value from stdin
+- `%(NAME?)s` `%(NAME?)q` nullable placeholder that defaults to null
 - `%(NAME)?s` `%(NAME)?q` optional placeholder that defaults to blank
-- `%*s` `%*q` expand positional values as array items
-- `%**s` `%**q` expand positional values as key value pairs
-- `%(NAME)*s` `%(NAME)*q` expand named values as array items
-- `%(NAME)**s` `%(NAME)**q` expand named values as key value pairs
+- `%*s` `%*q` expand positional args as array items
+- `%*-s` `%*-q` expand stdin as array items
+- `%**s` `%**q` expand positional args as key value pairs
+- `%**-s` `%**-q` expand stdin as key value pairs
+- `%(NAME)*s` `%(NAME)*q` expand named args as array items
+- `%(NAME)**s` `%(NAME)**q` expand named args as key value pairs
 
 ### RULES
 
 - Pass values for positional placeholders in the same order as in the template.
+- Pass values to stdin following the order and separate them with null byte (`\0`).
 - Pass values for named placeholders using `NAME=VALUE` syntax.
 - Pass values for named array items using `NAME=ITEM_N` syntax.
 - Pass values for named key value pairs using `NAME=KEY_N NAME=VALUE_N` syntax.
+- Use `NAME@FILE` syntax to read from file where FILE can be `-` for stdin.
 - Do not declare or pass positional placeholders or values after named ones.
 - Expandable positional placeholder should be the last placeholder in a template.
 
@@ -78,15 +85,14 @@ jf %s 1
 jf %q 1
 # "1"
 
-jf [%*s] 1 2 3
-# [1,2,3]
-
-jf {%**q} one 1 two 2 three 3
+jf '{%**q}' one 1 two 2 three 3
 # {"one":"1","two":"2","three":"3"}
+
+seq 1 3 | xargs printf '%s\0' | jf '[%*-s]'
+# [1,2,3]
 
 jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
 # {"foo":"bar","biz":"baz"}
-
 
 jf "{str or bool: %(str)?q %(bool)?s, nullable: %(nullable?)q}" str=true
 # {"str or bool":"true","nullable":null}

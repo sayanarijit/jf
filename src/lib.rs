@@ -1,6 +1,8 @@
 pub use serde_json as json;
 pub use serde_yaml as yaml;
+use std::io::BufRead;
 use std::{borrow::Cow, collections::HashMap, fmt::Display};
+use std::{fs, io};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -11,6 +13,7 @@ pub enum Error {
     Json(json::Error),
     Yaml(yaml::Error),
     Jf(String),
+    Io(io::Error),
     Usage,
 }
 
@@ -20,6 +23,7 @@ impl Error {
             Self::Usage | Self::Jf(_) => 1,
             Self::Json(_) => 2,
             Self::Yaml(_) => 3,
+            Self::Io(_) => 4,
         }
     }
 }
@@ -42,6 +46,12 @@ impl From<&str> for Error {
     }
 }
 
+impl From<io::Error> for Error {
+    fn from(v: io::Error) -> Self {
+        Self::Io(v)
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -54,11 +64,31 @@ impl Display for Error {
             Self::Json(e) => write!(f, "json: {e}"),
             Self::Yaml(e) => write!(f, "yaml: {e}"),
             Self::Jf(e) => write!(f, "jf: {e}"),
+            Self::Io(e) => write!(f, "io: {e}"),
         }
     }
 }
 
-fn read_default_value<C>(chars: &mut C) -> String
+fn read_to_string<S>(path: &str, stdin: &mut S) -> Result<String, Error>
+where
+    S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
+{
+    if path == "-" {
+        match stdin.next() {
+            Some((_, Ok(bytes))) => Ok(String::from_utf8_lossy(&bytes).to_string()),
+            Some((_, Err(e))) => Err(e.into()),
+            None => Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "unexpected end of input",
+            )
+            .into()),
+        }
+    } else {
+        fs::read_to_string(path).map_err(Into::into)
+    }
+}
+
+fn read_brace_value<C>(chars: &mut C) -> String
 where
     C: Iterator<Item = (usize, char)>,
 {
@@ -89,13 +119,15 @@ where
     val
 }
 
-fn read_named_placeholder<C>(
+fn read_named_placeholder<C, S>(
     val: &mut String,
     chars: &mut C,
     named_values: &HashMap<String, Vec<String>>,
+    stdin: &mut S,
 ) -> Result<(), Error>
 where
     C: Iterator<Item = (usize, char)>,
+    S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
 {
     // Reading a named placeholder
 
@@ -104,8 +136,8 @@ where
     let mut default_value: Option<String> = None;
     let mut is_optional = false;
     let mut is_nullable = false;
-    let mut is_reading_expandable_items = false;
-    let mut is_reading_expandable_pairs = false;
+    let mut expand_items = false;
+    let mut expand_pairs = false;
 
     loop {
         let Some((col, ch)) = chars.next() else {
@@ -113,8 +145,13 @@ where
         };
 
         match (ch, last_char) {
-            ('=', _) => {
-                default_value = Some(read_default_value(chars));
+            ('=', _) if default_value.is_none() => {
+                default_value = Some(read_brace_value(chars));
+                last_char = Some(')');
+            }
+            ('@', _) if default_value.is_none() => {
+                let pth = read_brace_value(chars);
+                default_value = Some(read_to_string(&pth, stdin)?);
                 last_char = Some(')');
             }
             (')', _) => {
@@ -137,13 +174,13 @@ where
                 }
             }
             ('*', Some(')')) => {
-                is_reading_expandable_items = true;
-                is_reading_expandable_pairs = false;
+                expand_items = true;
+                expand_pairs = false;
                 last_char = Some(ch);
             }
             ('*', Some('*')) => {
-                is_reading_expandable_pairs = true;
-                is_reading_expandable_items = false;
+                expand_pairs = true;
+                expand_items = false;
                 last_char = Some(ch);
             }
             (ch, Some(')')) if ch == 'q' || ch == 's' => {
@@ -194,10 +231,14 @@ where
                     .map(Into::into)
                     .enumerate();
 
-                if is_reading_expandable_pairs {
-                    read_positional_pairs_placeholder(val, ch, col, &mut args)?;
-                } else if is_reading_expandable_items {
-                    read_positional_items_placeholder(val, ch, &mut args)?;
+                if expand_pairs {
+                    read_positional_pairs_placeholder(
+                        val, ch, col, false, &mut args, stdin,
+                    )?;
+                } else if expand_items {
+                    read_positional_items_placeholder(
+                        val, ch, col, false, &mut args, stdin,
+                    )?;
                 } else {
                     unreachable!();
                 }
@@ -207,9 +248,16 @@ where
                 name.push(ch);
                 last_char = None;
             }
-            (_, Some(')')) => {
+            (_, Some(')')) | (_, Some('*')) => {
+                let stars = if expand_items {
+                    "*"
+                } else if expand_pairs {
+                    "**"
+                } else {
+                    ""
+                };
                 return Err(
-                    format!("invalid named placeholder '%({name}){ch}' at column {col}, use '%({name})q' for quoted strings and '%({name})s' for other values")
+                    format!("invalid named placeholder '%({name}){stars}{ch}' at column {col}, use '%({name}){stars}q' for quoted strings and '%({name}){stars}s' for other values")
                     .as_str()
                     .into()
                 );
@@ -227,37 +275,27 @@ where
     Ok(())
 }
 
-fn read_positional_placeholder<'a, A>(
-    val: &mut String,
-    ch: char,
-    col: usize,
+fn collect_named_values<'a, A, S>(
     args: &mut A,
-) -> Result<(), Error>
-where
-    A: Iterator<Item = (usize, Cow<'a, str>)>,
-{
-    let Some((_, arg)) = args.next() else {
-        return Err(format!("placeholder missing value at column {col}").as_str().into())
-    };
-
-    if ch == 'q' {
-        val.push_str(&json::to_string(&arg)?);
-    } else {
-        val.push_str(&arg);
-    };
-    Ok(())
-}
-
-fn collect_named_values<'a, A>(
-    args: &mut A,
+    stdin: &mut S,
     named_values: &mut HashMap<String, Vec<String>>,
 ) -> Result<(), Error>
 where
     A: Iterator<Item = (usize, Cow<'a, str>)>,
+    S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
 {
     for (valnum, arg) in args.by_ref() {
-        let Some((name, value)) = arg.split_once('=') else {
-            return Err(format!("invalid syntax for value no. {valnum}, use 'NAME=VALUE' syntax").as_str().into());
+        let (name, value) = if let Some((name, value)) = arg.split_once('=') {
+            (name, value.to_string())
+        } else if let Some((name, path)) = arg.split_once('@') {
+            let value = read_to_string(path, stdin)?;
+            (name, value)
+        } else {
+            return Err(format!(
+                "invalid syntax for value no. {valnum}, use 'NAME=VALUE' or 'NAME@FILE' syntax"
+            )
+            .as_str()
+            .into());
         };
 
         if let Some(values) = named_values.get_mut(name) {
@@ -269,16 +307,74 @@ where
     Ok(())
 }
 
-fn read_positional_items_placeholder<'a, A>(
+fn read<'a, A, S>(
+    is_stdin: bool,
+    col: usize,
+    args: &mut A,
+    stdin: &mut S,
+) -> Result<(usize, String), Error>
+where
+    A: Iterator<Item = (usize, Cow<'a, str>)>,
+    S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
+{
+    let maybe_arg = if is_stdin {
+        if let Some((i, arg)) = stdin.next() {
+            let arg = arg?;
+            let arg = String::from_utf8_lossy(&arg).to_string();
+            Some((i, arg))
+        } else {
+            None
+        }
+    } else {
+        args.next().map(|(i, a)| (i, a.to_string()))
+    };
+
+    if let Some((i, arg)) = maybe_arg {
+        Ok((i, arg))
+    } else {
+        Err(format!("placeholder missing value at column {col}")
+            .as_str()
+            .into())
+    }
+}
+
+fn read_positional_placeholder<'a, A, S>(
     val: &mut String,
     ch: char,
+    col: usize,
+    is_stdin: bool,
     args: &mut A,
+    stdin: &mut S,
 ) -> Result<(), Error>
 where
     A: Iterator<Item = (usize, Cow<'a, str>)>,
+    S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
+{
+    let (_, arg) = read(is_stdin, col, args, stdin)?;
+
+    if ch == 'q' {
+        val.push_str(&json::to_string(&arg)?);
+    } else {
+        val.push_str(&arg);
+    };
+    Ok(())
+}
+
+fn read_positional_items_placeholder<'a, A, S>(
+    val: &mut String,
+    ch: char,
+    col: usize,
+    is_stdin: bool,
+    args: &mut A,
+    stdin: &mut S,
+) -> Result<(), Error>
+where
+    A: Iterator<Item = (usize, Cow<'a, str>)>,
+    S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
 {
     let mut is_empty = true;
-    for (_, arg) in args {
+
+    while let Ok((_, arg)) = read(is_stdin, col, args, stdin) {
         is_empty = false;
         if ch == 'q' {
             val.push_str(&json::to_string(&arg)?);
@@ -294,18 +390,21 @@ where
     Ok(())
 }
 
-fn read_positional_pairs_placeholder<'a, A>(
+fn read_positional_pairs_placeholder<'a, A, S>(
     val: &mut String,
     ch: char,
     col: usize,
+    is_stdin: bool,
     args: &mut A,
+    stdin: &mut S,
 ) -> Result<(), Error>
 where
     A: Iterator<Item = (usize, Cow<'a, str>)>,
+    S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
 {
     let mut is_reading_key = true;
     let mut is_empty = true;
-    for (_, arg) in args {
+    while let Ok((_, arg)) = read(is_stdin, col, args, stdin) {
         is_empty = false;
         let arg = if is_reading_key || ch == 'q' {
             json::to_string(&arg)?
@@ -336,20 +435,23 @@ where
     Ok(())
 }
 
-fn format_partial<'a, C, A>(
+pub fn format_partial<'a, C, A, S>(
     chars: &mut C,
     args: &mut A,
+    stdin: &mut S,
 ) -> Result<(String, Option<char>), Error>
 where
     C: Iterator<Item = (usize, char)>,
     A: Iterator<Item = (usize, Cow<'a, str>)>,
+    S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
 {
     let mut val = "".to_string();
     let mut last_char = None;
     let mut is_reading_named_values = false;
     let mut named_values = HashMap::<String, Vec<String>>::new();
-    let mut is_reading_positional_items = false;
-    let mut is_reading_positional_pairs = false;
+    let mut expand_items = false;
+    let mut expand_pairs = false;
+    let mut is_stdin = false;
 
     while let Some((col, ch)) = chars.next() {
         // Reading a named placeholder
@@ -359,14 +461,35 @@ where
                 val.push(ch);
                 last_char = None;
             }
-            ('%', _) => {
-                last_char = Some(ch);
-            }
             ('v', Some('%')) => {
                 val.push_str(VERSION);
                 last_char = None;
             }
-            (ch, Some('%')) | (ch, Some('*')) if ch == 's' || ch == 'q' => {
+            ('%', _) => {
+                last_char = Some(ch);
+            }
+            ('(', Some('%')) => {
+                if !is_reading_named_values {
+                    is_reading_named_values = true;
+                    collect_named_values(args, stdin, &mut named_values)?;
+                };
+                read_named_placeholder(&mut val, chars, &named_values, stdin)?;
+                last_char = None;
+            }
+            ('*', Some('%')) if !expand_items && !expand_pairs => {
+                expand_items = true;
+                last_char = Some('%');
+            }
+            ('*', Some('%')) if expand_items && !expand_pairs => {
+                expand_items = false;
+                expand_pairs = true;
+                last_char = Some('%');
+            }
+            ('-', Some('%')) => {
+                is_stdin = true;
+                last_char = Some('%');
+            }
+            (ch, Some('%')) if ch == 's' || ch == 'q' => {
                 if is_reading_named_values {
                     return Err(
                         format!("positional placeholder '%{ch}' at column {col} was used after named placeholders, use named placeholder syntax '%(NAME){ch}' instead")
@@ -375,42 +498,40 @@ where
                     );
                 };
 
-                if is_reading_positional_items {
-                    read_positional_items_placeholder(&mut val, ch, args)?;
-                    is_reading_positional_items = false;
-                } else if is_reading_positional_pairs {
-                    read_positional_pairs_placeholder(&mut val, ch, col, args)?;
-                    is_reading_positional_pairs = false;
+                if expand_items {
+                    read_positional_items_placeholder(
+                        &mut val, ch, col, is_stdin, args, stdin,
+                    )?;
+                    expand_items = false;
+                } else if expand_pairs {
+                    read_positional_pairs_placeholder(
+                        &mut val, ch, col, is_stdin, args, stdin,
+                    )?;
+                    expand_pairs = false;
                 } else {
-                    read_positional_placeholder(&mut val, ch, col, args)?;
+                    read_positional_placeholder(
+                        &mut val, ch, col, is_stdin, args, stdin,
+                    )?;
                 }
+                is_stdin = false;
                 last_char = None;
-            }
-            ('(', Some('%')) => {
-                if !is_reading_named_values {
-                    is_reading_named_values = true;
-                    collect_named_values(args, &mut named_values)?;
-                };
-                read_named_placeholder(&mut val, chars, &named_values)?;
-                last_char = None;
-            }
-            ('*', Some('%')) => {
-                is_reading_positional_items = true;
-                last_char = Some(ch);
-            }
-            ('*', Some('*')) if is_reading_positional_items => {
-                is_reading_positional_items = false;
-                is_reading_positional_pairs = true;
-                last_char = Some(ch);
             }
             (_, Some('%')) => {
-                return Err(format!("invalid placeholder '%{ch}' at column {col}, use one of '%s' or '%q', or escape it using '%%'").as_str().into());
+                let stars = if expand_items {
+                    "*"
+                } else if expand_pairs {
+                    "**"
+                } else {
+                    ""
+                };
+                return Err(format!("invalid placeholder '%{stars}{ch}' at column {col}, use one of '%{stars}s' or '%{stars}q', or escape it using '%%'").as_str().into());
             }
             (_, _) => {
                 val.push(ch);
                 last_char = None;
-                is_reading_positional_items = false;
-                is_reading_positional_pairs = false;
+                expand_items = false;
+                expand_pairs = false;
+                is_stdin = false;
             }
         }
     }
@@ -429,8 +550,9 @@ where
     };
 
     let mut chars = format.chars().enumerate();
+    let mut stdin = io::stdin().lock().split(b'\0').enumerate();
 
-    let (val, last_char) = format_partial(&mut chars, &mut args)?;
+    let (val, last_char) = format_partial(&mut chars, &mut args, &mut stdin)?;
 
     if last_char == Some('%') {
         return Err("template ended with incomplete placeholder".into());

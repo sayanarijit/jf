@@ -1,6 +1,6 @@
 [package]
 name = "jf"
-version = "0.3.3"
+version = "0.4.0"
 edition = "2021"
 authors = ["Arijit Basu <hi@arijitbasu.in>"]
 description = 'A small utility to safely format and print JSON objects in the commandline'

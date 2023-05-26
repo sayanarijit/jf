@@ -1,3 +1,7 @@
+use serde_json as json;
+use std::borrow::Cow;
+use std::io;
+
 #[test]
 fn test_format_positional() {
     let args = [
@@ -14,6 +18,79 @@ fn test_format_positional() {
     assert_eq!(
         jf::format(args).unwrap(),
         r#"{"1":1,"one":"1","true":true,"truestr":"true","foo":"foo","bar":"bar","esc":"%"}"#
+    );
+}
+
+#[test]
+fn test_format_from_stdin() {
+    let mut chars = r#"{%q: %-s, %q: %-s, %q: %-s}"#.chars().enumerate();
+
+    let mut stdin = ["1", "2", "3"]
+        .map(Into::into)
+        .map(io::Result::Ok)
+        .into_iter()
+        .enumerate();
+
+    let mut args = ["one", "two", "three"]
+        .map(Cow::from)
+        .into_iter()
+        .enumerate();
+
+    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    assert_eq!(res, r#"{"one": 1, "two": 2, "three": 3}"#);
+
+    let mut chars =
+        r#"{"1": %-s, one: %q, "true": %s, truestr: %-q, foo: %-s, bar: %q, esc: "%%"}"#
+            .chars()
+            .enumerate();
+
+    let mut stdin = ["1", "true", "foo"]
+        .map(Into::into)
+        .map(io::Result::Ok)
+        .into_iter()
+        .enumerate();
+
+    let mut args = ["1", "true", "bar"].map(Cow::from).into_iter().enumerate();
+
+    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    assert_eq!(
+        res,
+        r#"{"1": 1, one: "1", "true": true, truestr: "true", foo: foo, bar: "bar", esc: "%"}"#
+    );
+}
+
+#[test]
+fn test_format_expand_items_from_stdin() {
+    let mut chars = r#"[start, %*-s, mid, %*s, end]"#.chars().enumerate();
+
+    let mut stdin = ["1", "true", "foo"]
+        .map(Into::into)
+        .map(io::Result::Ok)
+        .into_iter()
+        .enumerate();
+
+    let mut args = ["2", "false", "bar"].map(Cow::from).into_iter().enumerate();
+
+    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    assert_eq!(res, r#"[start, 1,true,foo, mid, 2,false,bar, end]"#);
+}
+
+#[test]
+fn test_format_expand_pairs_from_stdin() {
+    let mut chars = r#"{args: {%**q}, stdin: {%**-q}}"#.chars().enumerate();
+
+    let mut stdin = ["one", "1", "two", "2"]
+        .map(Into::into)
+        .map(io::Result::Ok)
+        .into_iter()
+        .enumerate();
+
+    let mut args = ["three", "3"].map(Cow::from).into_iter().enumerate();
+
+    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    assert_eq!(
+        res,
+        r#"{args: {"three":"3"}, stdin: {"one":"1","two":"2"}}"#
     );
 }
 
@@ -51,6 +128,31 @@ fn test_format_both() {
 }
 
 #[test]
+fn test_format_named_from_file_path() {
+    let args = ["%(NAME)q", "NAME@./src/usage.txt"].map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap(),
+        json::to_string(jf::USAGE).unwrap()
+    );
+}
+
+#[test]
+fn test_format_named_from_stdin() {
+    let mut chars = "{%(FOO)q: %(BAR)q}".chars().enumerate();
+    let mut stdin = ["foo", "bar"]
+        .map(Into::into)
+        .map(io::Result::Ok)
+        .into_iter()
+        .enumerate();
+    let mut args = ["FOO@-", "BAR@-"].map(Cow::from).into_iter().enumerate();
+
+    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+
+    assert_eq!(res, r#"{"foo": "bar"}"#);
+}
+
+#[test]
 fn test_format_named_with_default() {
     let args = [
         r#"{"1": %(1=1)s, one: %(1=1)q, foo: %(foo=default)q, empty: %(bar=)q, esc: %(x=(\))q, multi=: %(a=b=c)q}"#,
@@ -61,6 +163,56 @@ fn test_format_named_with_default() {
         jf::format(args).unwrap(),
         r#"{"1":1,"one":"1","foo":"bar","empty":"","esc":"()","multi=":"b=c"}"#
     );
+}
+
+#[test]
+fn test_format_named_with_default_from_file() {
+    let args = ["%(foo@./src/usage.txt)q"].map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap(),
+        json::to_string(jf::USAGE).unwrap()
+    );
+
+    let args = ["%(foo@./src/usage.txt)q", "foo=bar"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#""bar""#);
+}
+
+#[test]
+fn test_format_named_with_default_from_stdin() {
+    let mut chars = "%(foo@-)q".chars().enumerate();
+    let mut args = [].into_iter().enumerate();
+    let mut stdin = ["foo"]
+        .map(Into::into)
+        .map(io::Result::Ok)
+        .into_iter()
+        .enumerate();
+
+    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    assert_eq!(res, r#""foo""#);
+
+    let mut chars = "%(foo@-)q".chars().enumerate();
+    let mut args = ["foo=bar"].map(Into::into).into_iter().enumerate();
+
+    let mut stdin = ["foo"]
+        .map(Into::into)
+        .map(io::Result::Ok)
+        .into_iter()
+        .enumerate();
+    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    assert_eq!(res, r#""bar""#);
+}
+
+#[test]
+fn test_unexpected_eof() {
+    let mut chars = "%(foo@-)q".chars().enumerate();
+    let mut args = [].into_iter().enumerate();
+    let mut stdin = [].into_iter().enumerate();
+
+    let err = jf::format_partial(&mut chars, &mut args, &mut stdin)
+        .unwrap_err()
+        .to_string();
+
+    assert_eq!(err, "io: unexpected end of input");
 }
 
 #[test]
@@ -85,7 +237,7 @@ fn test_format_optional() {
 }
 
 #[test]
-fn test_format_positional_var_arr() {
+fn test_format_expand_positional_items() {
     let args = [r#"[%*s]"#].map(Into::into);
     assert_eq!(jf::format(args).unwrap(), r#"[]"#);
 
@@ -97,7 +249,7 @@ fn test_format_positional_var_arr() {
 }
 
 #[test]
-fn test_format_positional_var_obj() {
+fn test_format_expand_positional_pairs() {
     let args = [r#"{%**s}"#].map(Into::into);
     assert_eq!(jf::format(args).unwrap(), r#"{}"#);
 
@@ -112,7 +264,7 @@ fn test_format_positional_var_obj() {
 }
 
 #[test]
-fn test_format_named_var_arr() {
+fn test_format_named_items() {
     let args = [r#"[%(foo)*s]"#].map(Into::into);
     assert_eq!(jf::format(args).unwrap(), r#"[]"#);
 
@@ -128,7 +280,7 @@ fn test_format_named_var_arr() {
 }
 
 #[test]
-fn test_format_named_var_obj() {
+fn test_format_named_pairs() {
     let args = [r#"{%(foo)**s}"#].map(Into::into);
     assert_eq!(jf::format(args).unwrap(), r#"{}"#);
 
@@ -248,11 +400,22 @@ fn test_too_many_values_error() {
 
 #[test]
 fn test_invalid_placeholder_error() {
-    let args = ["foo: %z", "bar"].map(Into::into);
-
+    let args = ["%z"].map(Into::into);
     assert_eq!(
         jf::format(args).unwrap_err().to_string(),
-        "jf: invalid placeholder '%z' at column 6, use one of '%s' or '%q', or escape it using '%%'"
+        "jf: invalid placeholder '%z' at column 1, use one of '%s' or '%q', or escape it using '%%'"
+    );
+
+    let args = ["%*z"].map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: invalid placeholder '%*z' at column 2, use one of '%*s' or '%*q', or escape it using '%%'"
+    );
+
+    let args = ["%**z"].map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: invalid placeholder '%**z' at column 3, use one of '%**s' or '%**q', or escape it using '%%'"
     );
 }
 
@@ -260,16 +423,23 @@ fn test_invalid_placeholder_error() {
 fn test_incomplete_placeholder_error() {
     for arg in [
         "%",
+        "%-",
         "%(",
         "%()",
         "%(foo",
         "%(foo)",
         "%(foo)?",
         "%(foo)*",
+        "%(foo)**",
         "%(foo=",
         "%(foo=bar",
+        "%(foo@README.md",
         "%(foo=bar)",
+        "%(foo@README.md)",
         "%(foo=bar)*",
+        "%(foo@README.md)*",
+        "%(foo=bar)**",
+        "%(foo@README.md)**",
     ] {
         assert_eq!(
             jf::format([arg].map(Into::into)).unwrap_err().to_string(),
@@ -303,6 +473,16 @@ fn test_json_error() {
         jf::format(args).unwrap_err().to_string(),
         "json: key must be a string",
     );
+}
+
+#[test]
+fn test_io_error() {
+    let args = ["%(devnull@/usr/bin/env)q"].map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "io: stream did not contain valid UTF-8",
+    )
 }
 
 #[test]
@@ -370,7 +550,7 @@ fn test_invalid_syntax_for_value_of_named_placeholder_error() {
 
     assert_eq!(
         jf::format(args).unwrap_err().to_string(),
-        "jf: invalid syntax for value no. 1, use 'NAME=VALUE' syntax"
+        "jf: invalid syntax for value no. 1, use 'NAME=VALUE' or 'NAME@FILE' syntax"
     );
 }
 
@@ -381,22 +561,52 @@ fn test_invalid_named_placeholder_error() {
         jf::format(args.clone()).unwrap_err().to_string(),
         format!("jf: invalid named placeholder '%(foo)x' at column 6, use '%(foo)q' for quoted strings and '%(foo)s' for other values")
     );
+
+    let args = ["%(foo)-"].map(Into::into);
+    assert_eq!(
+        jf::format(args.clone()).unwrap_err().to_string(),
+        format!("jf: invalid named placeholder '%(foo)-' at column 6, use '%(foo)q' for quoted strings and '%(foo)s' for other values")
+    );
+
+    let args = ["%(foo)*x"].map(Into::into);
+    assert_eq!(
+        jf::format(args.clone()).unwrap_err().to_string(),
+        format!("jf: invalid named placeholder '%(foo)*x' at column 7, use '%(foo)*q' for quoted strings and '%(foo)*s' for other values")
+    );
+
+    let args = ["%(foo)*-"].map(Into::into);
+    assert_eq!(
+        jf::format(args.clone()).unwrap_err().to_string(),
+        format!("jf: invalid named placeholder '%(foo)*-' at column 7, use '%(foo)*q' for quoted strings and '%(foo)*s' for other values")
+    );
+
+    let args = ["%(foo)**x"].map(Into::into);
+    assert_eq!(
+        jf::format(args.clone()).unwrap_err().to_string(),
+        format!("jf: invalid named placeholder '%(foo)**x' at column 8, use '%(foo)**q' for quoted strings and '%(foo)**s' for other values")
+    );
+
+    let args = ["%(foo)**-"].map(Into::into);
+    assert_eq!(
+        jf::format(args.clone()).unwrap_err().to_string(),
+        format!("jf: invalid named placeholder '%(foo)**-' at column 8, use '%(foo)**q' for quoted strings and '%(foo)**s' for other values")
+    );
 }
 
 #[test]
 fn test_usage_example() {
     let args = ["%s", "1"].map(Into::into);
-    assert_eq!(jf::format(args).unwrap().to_string(), "1");
+    assert_eq!(jf::format(args).unwrap(), "1");
 
     let args = ["%q", "1"].map(Into::into);
-    assert_eq!(jf::format(args).unwrap().to_string(), r#""1""#);
+    assert_eq!(jf::format(args).unwrap(), r#""1""#);
 
     let args = ["[%*s]", "1", "2", "3"].map(Into::into);
-    assert_eq!(jf::format(args).unwrap().to_string(), "[1,2,3]");
+    assert_eq!(jf::format(args).unwrap(), "[1,2,3]");
 
     let args = ["{%**q}", "one", "1", "two", "2", "three", "3"].map(Into::into);
     assert_eq!(
-        jf::format(args).unwrap().to_string(),
+        jf::format(args).unwrap(),
         r#"{"one":"1","two":"2","three":"3"}"#
     );
 
@@ -408,10 +618,7 @@ fn test_usage_example() {
         "bar=baz",
     ]
     .map(Into::into);
-    assert_eq!(
-        jf::format(args).unwrap().to_string(),
-        r#"{"foo":"bar","biz":"baz"}"#
-    );
+    assert_eq!(jf::format(args).unwrap(), r#"{"foo":"bar","biz":"baz"}"#);
 
     let args = [
         "{str or bool: %(str)?q %(bool)?s, nullable: %(nullable?)q}",
@@ -419,7 +626,7 @@ fn test_usage_example() {
     ]
     .map(Into::into);
     assert_eq!(
-        jf::format(args).unwrap().to_string(),
+        jf::format(args).unwrap(),
         r#"{"str or bool":"true","nullable":null}"#
     );
 
@@ -431,7 +638,7 @@ fn test_usage_example() {
     ]
     .map(Into::into);
     assert_eq!(
-        jf::format(args).unwrap().to_string(),
+        jf::format(args).unwrap(),
         r#"{"1":1,"two":"2","3":3,"four":"4","%":null}"#
     );
 }
@@ -439,14 +646,14 @@ fn test_usage_example() {
 #[test]
 fn test_print_version() {
     let arg = ["jf v%v"].map(Into::into);
-    assert_eq!(jf::format(arg).unwrap().to_string(), r#""jf v0.3.3""#);
+    assert_eq!(jf::format(arg).unwrap(), r#""jf v0.4.0""#);
 
     let args =
         ["{foo: %q, bar: %(bar)q, version: %v}", "foo", "bar=bar"].map(Into::into);
 
     assert_eq!(
-        jf::format(args).unwrap().to_string(),
-        r#"{"foo":"foo","bar":"bar","version":"0.3.3"}"#
+        jf::format(args).unwrap(),
+        r#"{"foo":"foo","bar":"bar","version":"0.4.0"}"#
     );
 }
 
