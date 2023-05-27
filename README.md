@@ -45,6 +45,9 @@ Where TEMPLATE may contain the following placeholders:
 - `%s` JSON values other than string
 - `%v` the `jf` version number
 - `%%` a literal `%` character
+- `%R` enable raw mode - render but do not format output
+- `%Y` enable pretty YAML mode - format output into pretty YAML
+- `%J` enable pretty JSON mode - format output into pretty JSON
 
 And [VALUE]... [NAME=VALUE]... [NAME@FILE]... are the values for the placeholders.
 
