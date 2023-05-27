@@ -74,7 +74,8 @@ And [VALUE]... [NAME=VALUE]... [NAME@FILE]... are the values for the placeholder
 - Pass values for named key value pairs using `NAME=KEY_N NAME=VALUE_N` syntax.
 - Use `NAME@FILE` syntax to read from file where FILE can be `-` for stdin.
 - Do not declare or pass positional placeholders or values after named ones.
-- Expandable positional placeholder should be the last placeholder in a template.
+- To allow merging arrays and objects via expansion, trailing comma after `s` and `q`
+  will be auto removed after the expansion if no value is passed for the placeholder.
 
 ### EXAMPLES
 
