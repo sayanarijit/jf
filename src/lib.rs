@@ -14,13 +14,12 @@ pub enum Error {
     Yaml(yaml::Error),
     Jf(String),
     Io(io::Error),
-    Usage,
 }
 
 impl Error {
     pub fn returncode(&self) -> i32 {
         match self {
-            Self::Usage | Self::Jf(_) => 1,
+            Self::Jf(_) => 1,
             Self::Json(_) => 2,
             Self::Yaml(_) => 3,
             Self::Io(_) => 4,
@@ -55,12 +54,6 @@ impl From<io::Error> for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Usage => {
-                writeln!(f, "jf: not enough arguments")?;
-                writeln!(f)?;
-                write!(f, "{USAGE}")
-            }
-
             Self::Json(e) => write!(f, "json: {e}"),
             Self::Yaml(e) => write!(f, "yaml: {e}"),
             Self::Jf(e) => write!(f, "jf: {e}"),
@@ -436,25 +429,16 @@ where
     Ok(was_expanded)
 }
 
-#[derive(Debug)]
-enum Mode {
-    Json,
-    Raw,
-    Yaml,
-    PrettyJson,
-}
-
 fn format_partial<'a, C, A, S>(
     chars: &mut C,
     args: &mut A,
     stdin: &mut S,
-) -> Result<(String, Option<char>, Mode), Error>
+) -> Result<(String, Option<char>), Error>
 where
     C: Iterator<Item = (usize, char)>,
     A: Iterator<Item = (usize, Cow<'a, str>)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
 {
-    let mut mode = Mode::Json;
     let mut val = "".to_string();
     let mut last_char = None;
     let mut is_reading_named_values = false;
@@ -470,22 +454,6 @@ where
         match (ch, last_char) {
             ('%', Some('%')) => {
                 val.push(ch);
-                last_char = None;
-            }
-            ('v', Some('%')) => {
-                val.push_str(VERSION);
-                last_char = None;
-            }
-            ('R', Some('%')) => {
-                mode = Mode::Raw;
-                last_char = None;
-            }
-            ('Y', Some('%')) => {
-                mode = Mode::Yaml;
-                last_char = None;
-            }
-            ('J', Some('%')) => {
-                mode = Mode::PrettyJson;
                 last_char = None;
             }
             ('%', _) => {
@@ -566,23 +534,23 @@ where
         }
     }
 
-    Ok((val, last_char, mode))
+    Ok((val, last_char))
 }
 
-/// Format a string using the given arguments.
-pub fn format<'a, I>(args: I) -> Result<String, Error>
+/// Render the template using the given arguments.
+pub fn render<'a, I>(args: I) -> Result<String, Error>
 where
     I: IntoIterator<Item = Cow<'a, str>>,
 {
     let mut args = args.into_iter().enumerate();
     let Some((_, format)) = args.next() else {
-        return Err(Error::Usage);
+        return Err("not enough arguments, expected at least one".into());
     };
 
     let mut chars = format.chars().enumerate();
     let mut stdin = io::stdin().lock().split(b'\0').enumerate();
 
-    let (val, last_char, mode) = format_partial(&mut chars, &mut args, &mut stdin)?;
+    let (val, last_char) = format_partial(&mut chars, &mut args, &mut stdin)?;
 
     if last_char == Some('%') {
         return Err("template ended with incomplete placeholder".into());
@@ -594,18 +562,37 @@ where
         );
     };
 
-    match mode {
-        Mode::Raw => Ok(val),
-        Mode::Yaml => yaml::from_str::<yaml::Value>(&val)
-            .and_then(|y| yaml::to_string(&y))
-            .map_err(Error::from),
-        Mode::Json => yaml::from_str::<yaml::Value>(&val)
-            .map_err(Error::from)
-            .and_then(|y| json::to_string(&y).map_err(Error::from)),
-        Mode::PrettyJson => yaml::from_str::<yaml::Value>(&val)
-            .map_err(Error::from)
-            .and_then(|y| json::to_string_pretty(&y).map_err(Error::from)),
-    }
+    Ok(val)
+}
+
+/// Render and format the template into JSON.
+pub fn format<'a, I>(args: I) -> Result<String, Error>
+where
+    I: IntoIterator<Item = Cow<'a, str>>,
+{
+    let val = render(args)?;
+    let yaml: yaml::Value = yaml::from_str(&val).map_err(Error::from)?;
+    json::to_string(&yaml).map_err(Error::from)
+}
+
+/// Render and format the template into pretty JSON.
+pub fn format_pretty<'a, I>(args: I) -> Result<String, Error>
+where
+    I: IntoIterator<Item = Cow<'a, str>>,
+{
+    let val = render(args)?;
+    let yaml: yaml::Value = yaml::from_str(&val).map_err(Error::from)?;
+    json::to_string_pretty(&yaml).map_err(Error::from)
+}
+
+/// Render and format the template into value JSON using the given arguments.
+pub fn format_yaml<'a, I>(args: I) -> Result<String, Error>
+where
+    I: IntoIterator<Item = Cow<'a, str>>,
+{
+    let val = render(args)?;
+    let yaml: yaml::Value = yaml::from_str(&val).map_err(Error::from)?;
+    yaml::to_string(&yaml).map_err(Error::from)
 }
 
 #[cfg(test)]

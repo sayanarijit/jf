@@ -2,41 +2,41 @@
 .TH jf  "1" "" ""
 .SH USAGE
 
-jf TEMPLATE [VALUE]\.\.\. [NAME=VALUE]\.\.\. [NAME@FILE]\.\.\.
-.PP
-Where TEMPLATE may contain the following placeholders:
+jf [OPTION]\.\.\. [--] TEMPLATE [VALUE]\.\.\. [NAME=VALUE]\.\.\. [NAME@FILE]\.\.\.
+.SH OPTIONS
+
 .TP
 .B
-`%q`
-quoted and safely escaped JSON string
+\fB-r\fP, \fB--raw\fP
+output the raw rendered value without formatting
 .TP
 .B
-`%s`
-JSON values other than string
+\fB-p\fP, \fB--pretty\fP
+pretty print the output
 .TP
 .B
-`%v`
-the `jf` version number
+\fB-y\fP, \fB--yaml\fP
+output as YAML instead of JSON
+.TP
+.B
+\fB-h\fP, \fB--help\fP
+print this help message
+.TP
+.B
+\fB-v\fP, \fB--version\fP
+print the version number
+.TP
+.B
+--
+stop parsing options
+.SH TEMPLATE
+
+A template is a string that should render into valid YAML. It can contain the
+following placeholders:
 .TP
 .B
 `%%`
 a literal `%` character
-.TP
-.B
-`%R`
-enable raw mode - render but do not format output
-.TP
-.B
-`%Y`
-enable pretty YAML mode - format output into pretty YAML
-.TP
-.B
-`%J`
-enable pretty JSON mode - format output into pretty JSON
-.PP
-And [VALUE]\.\.\. [NAME=VALUE]\.\.\. [NAME@FILE]\.\.\. are the values for the placeholders.
-.SH SYNTAX
-
 .TP
 .B
 `%s`
@@ -93,12 +93,13 @@ And [VALUE]\.\.\. [NAME=VALUE]\.\.\. [NAME@FILE]\.\.\. are the values for the pl
 .B
 `%(NAME)**s`
 `%(NAME)**q`        expand named args as key value pairs
+.PP
+Use placeholders with suffix `q` for safely quoted JSON string and `s` for JSON values
+other than string.
 .SH RULES
 
 .IP \(bu 3
 Pass values for positional placeholders in the same order as in the template.
-.IP \(bu 3
-Pass values to stdin following the order and separate them with null byte (`\0`).
 .IP \(bu 3
 Pass values for named placeholders using `NAME=VALUE` syntax.
 .IP \(bu 3
@@ -106,12 +107,14 @@ Pass values for named array items using `NAME=ITEM_N` syntax.
 .IP \(bu 3
 Pass values for named key value pairs using `NAME=KEY_N NAME=VALUE_N` syntax.
 .IP \(bu 3
+Pass values to stdin following the order and separate them with null byte (`\0`).
+.IP \(bu 3
 Use `NAME@FILE` syntax to read from file where FILE can be `-` for stdin.
 .IP \(bu 3
-Do not declare or pass positional placeholders or values after named ones.
+Do not pass positional values after named values.
 .IP \(bu 3
-To allow merging arrays and objects via expansion, trailing comma after `s` and `q`
-will be auto removed after the expansion if no value is passed for the placeholder.
+To allow merging arrays and objects via expansion, trailing comma after `s` and `q`,
+if any, will be auto removed if no value is passed for the expandable placeholder.
 .SH EXAMPLES
 
 .IP \(bu 3

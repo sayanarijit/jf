@@ -9,6 +9,13 @@
 However, unlike `jo`, where you build the JSON object by nesting `jo` outputs,
 `jf` works similar to `printf`, i.e. it expects the template in [YAML][yaml] format as the first argument, and then the values for the placeholders as subsequent arguments.
 
+For example:
+
+```bash
+jf "{one: %s, two: %q, three: [%(four)s, %(five=5)q]}" 1 2 four=4
+# {"one":1,"two":"2","three":[4,"5"]}
+```
+
 ### INSTALL
 
 #### [Cargo][cargo]
@@ -36,23 +43,15 @@ nix-env -f https://github.com/NixOS/nixpkgs/tarball/nixos-unstable -iA jf
 ### USAGE
 
 ```bash
-jf TEMPLATE [VALUE]... [NAME=VALUE]... [NAME@FILE]...
+jf [OPTION]... [--] TEMPLATE [VALUE]... [NAME=VALUE]... [NAME@FILE]...
 ```
 
-Where TEMPLATE may contain the following placeholders:
+### TEMPLATE
 
-- `%q` quoted and safely escaped JSON string
-- `%s` JSON values other than string
-- `%v` the `jf` version number
+A template is a string that should render into valid YAML. It can contain the
+following placeholders:
+
 - `%%` a literal `%` character
-- `%R` enable raw mode - render but do not format output
-- `%Y` enable pretty YAML mode - format output into pretty YAML
-- `%J` enable pretty JSON mode - format output into pretty JSON
-
-And [VALUE]... [NAME=VALUE]... [NAME@FILE]... are the values for the placeholders.
-
-### SYNTAX
-
 - `%s` `%q` read positional argument
 - `%-s` `%-q` read stdin
 - `%(NAME)s` `%(NAME)q` read named value from argument
@@ -68,17 +67,20 @@ And [VALUE]... [NAME=VALUE]... [NAME@FILE]... are the values for the placeholder
 - `%(NAME)*s` `%(NAME)*q` expand named args as array items
 - `%(NAME)**s` `%(NAME)**q` expand named args as key value pairs
 
+Use placeholders with suffix `q` for safely quoted JSON string and `s` for JSON values
+other than string.
+
 ### RULES
 
 - Pass values for positional placeholders in the same order as in the template.
-- Pass values to stdin following the order and separate them with null byte (`\0`).
 - Pass values for named placeholders using `NAME=VALUE` syntax.
 - Pass values for named array items using `NAME=ITEM_N` syntax.
 - Pass values for named key value pairs using `NAME=KEY_N NAME=VALUE_N` syntax.
+- Pass values to stdin following the order and separate them with null byte (`\0`).
 - Use `NAME@FILE` syntax to read from file where FILE can be `-` for stdin.
-- Do not declare or pass positional placeholders or values after named ones.
-- To allow merging arrays and objects via expansion, trailing comma after `s` and `q`
-  will be auto removed after the expansion if no value is passed for the placeholder.
+- Do not pass positional values after named values.
+- To allow merging arrays and objects via expansion, trailing comma after `s` and `q`,
+  if any, will be auto removed if no value is passed for the expandable placeholder.
 
 ### EXAMPLES
 
@@ -110,9 +112,9 @@ jf '{1: %s, two: %q, 3: %(3)s, four: %(four=4)q, "%%": %(pct?)q}' 1 2 3=3
 You can set the following aliases in your shell:
 
 ```bash
-alias str='jf %q'
-alias arr='jf "[%*s]"'
-alias obj='jf "{%**s}"'
+- alias str='jf %q'
+- alias arr='jf "[%*s]"'
+- alias obj='jf "{%**s}"'
 ```
 
 Then you can use them like this:
@@ -136,9 +138,6 @@ obj 1 2 3 $(arr 4 $(str 5))
 ```rust
 let json = match jf::format(["%q", "JSON Formatted"].map(Into::into)) {
     Ok(value) => value,
-    Err(jf::Error::Usage) => {
-        bail!("usage: mytool: TEMPLATE [VALUE]... [NAME=VALUE]...")
-    }
     Err(jf::Error::Jf(e)) => bail!("mytool: {e}"),
     Err(jf::Error::Json(e)) => bail!("mytool: json: {e}"),
     Err(jf::Error::Yaml(e)) => bail!("mytool: yaml: {e}"),
