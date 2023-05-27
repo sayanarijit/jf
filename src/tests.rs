@@ -95,6 +95,36 @@ fn test_format_expand_pairs_from_stdin() {
 }
 
 #[test]
+fn test_format_merge_arrays() {
+    let args = ["[%(a)*s, %(b)*s]"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), "[]");
+
+    let args = ["[%(a)*s, %(b)*s]", "a=1", "a=2"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), "[1,2]");
+
+    let args = ["[%(a)*s, %(b)*s]", "b=1", "b=2"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), "[1,2]");
+
+    let args = ["[%(a)*s, %(b)*s]", "a=1", "b=2", "a=3", "b=4"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), "[1,3,2,4]");
+}
+
+#[test]
+fn test_format_merge_objs() {
+    let args = ["{%(a)*s, %(b)*s}"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), "{}");
+
+    let args = ["{%(a)**s, %(b)**s}", "a=1", "a=2"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"1":2}"#);
+
+    let args = ["{%(a)**s, %(b)**s}", "b=1", "b=2"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"1":2}"#);
+
+    let args = ["{%(a)**s, %(b)**s}", "a=1", "b=2", "a=3", "b=4"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"1":3,"2":4}"#);
+}
+
+#[test]
 fn test_format_named() {
     let args = [
         r#"{"1": %(1)s, one: %(1)q, "true": %(true)s, "truestr": %(true)q, foo: %(foo)s, bar: %(bar)q, esc: "%%"}"#,
@@ -646,14 +676,14 @@ fn test_usage_example() {
 #[test]
 fn test_print_version() {
     let arg = ["jf v%v"].map(Into::into);
-    assert_eq!(jf::format(arg).unwrap(), r#""jf v0.4.0""#);
+    assert_eq!(jf::format(arg).unwrap(), r#""jf v0.4.1""#);
 
     let args =
         ["{foo: %q, bar: %(bar)q, version: %v}", "foo", "bar=bar"].map(Into::into);
 
     assert_eq!(
         jf::format(args).unwrap(),
-        r#"{"foo":"foo","bar":"bar","version":"0.4.0"}"#
+        r#"{"foo":"foo","bar":"bar","version":"0.4.1"}"#
     );
 }
 

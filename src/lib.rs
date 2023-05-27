@@ -124,7 +124,7 @@ fn read_named_placeholder<C, S>(
     chars: &mut C,
     named_values: &HashMap<String, Vec<String>>,
     stdin: &mut S,
-) -> Result<(), Error>
+) -> Result<bool, Error>
 where
     C: Iterator<Item = (usize, char)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
@@ -138,6 +138,7 @@ where
     let mut is_nullable = false;
     let mut expand_items = false;
     let mut expand_pairs = false;
+    let mut empty_expansion = false;
 
     loop {
         let Some((col, ch)) = chars.next() else {
@@ -232,11 +233,11 @@ where
                     .enumerate();
 
                 if expand_pairs {
-                    read_positional_pairs_placeholder(
+                    empty_expansion = !read_positional_pairs_placeholder(
                         val, ch, col, false, &mut args, stdin,
                     )?;
                 } else if expand_items {
-                    read_positional_items_placeholder(
+                    empty_expansion = !read_positional_items_placeholder(
                         val, ch, col, false, &mut args, stdin,
                     )?;
                 } else {
@@ -272,7 +273,7 @@ where
         }
     }
 
-    Ok(())
+    Ok(empty_expansion)
 }
 
 fn collect_named_values<'a, A, S>(
@@ -367,15 +368,15 @@ fn read_positional_items_placeholder<'a, A, S>(
     is_stdin: bool,
     args: &mut A,
     stdin: &mut S,
-) -> Result<(), Error>
+) -> Result<bool, Error>
 where
     A: Iterator<Item = (usize, Cow<'a, str>)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
 {
-    let mut is_empty = true;
+    let mut was_expanded = false;
 
     while let Ok((_, arg)) = read(is_stdin, col, args, stdin) {
-        is_empty = false;
+        was_expanded = true;
         if ch == 'q' {
             val.push_str(&json::to_string(&arg)?);
         } else {
@@ -384,10 +385,10 @@ where
         val.push(',');
     }
 
-    if !is_empty {
+    if was_expanded {
         val.pop();
     }
-    Ok(())
+    Ok(was_expanded)
 }
 
 fn read_positional_pairs_placeholder<'a, A, S>(
@@ -397,15 +398,15 @@ fn read_positional_pairs_placeholder<'a, A, S>(
     is_stdin: bool,
     args: &mut A,
     stdin: &mut S,
-) -> Result<(), Error>
+) -> Result<bool, Error>
 where
     A: Iterator<Item = (usize, Cow<'a, str>)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
 {
     let mut is_reading_key = true;
-    let mut is_empty = true;
+    let mut was_expanded = false;
     while let Ok((_, arg)) = read(is_stdin, col, args, stdin) {
-        is_empty = false;
+        was_expanded = true;
         let arg = if is_reading_key || ch == 'q' {
             json::to_string(&arg)?
         } else {
@@ -429,10 +430,10 @@ where
             .into());
     }
 
-    if !is_empty {
+    if was_expanded {
         val.pop();
     }
-    Ok(())
+    Ok(was_expanded)
 }
 
 pub fn format_partial<'a, C, A, S>(
@@ -452,6 +453,7 @@ where
     let mut expand_items = false;
     let mut expand_pairs = false;
     let mut is_stdin = false;
+    let mut empty_expansion = false;
 
     while let Some((col, ch)) = chars.next() {
         // Reading a named placeholder
@@ -473,7 +475,8 @@ where
                     is_reading_named_values = true;
                     collect_named_values(args, stdin, &mut named_values)?;
                 };
-                read_named_placeholder(&mut val, chars, &named_values, stdin)?;
+                empty_expansion =
+                    read_named_placeholder(&mut val, chars, &named_values, stdin)?;
                 last_char = None;
             }
             ('*', Some('%')) if !expand_items && !expand_pairs => {
@@ -489,6 +492,10 @@ where
                 is_stdin = true;
                 last_char = Some('%');
             }
+            (',', None) if empty_expansion => {
+                empty_expansion = false;
+                last_char = None;
+            }
             (ch, Some('%')) if ch == 's' || ch == 'q' => {
                 if is_reading_named_values {
                     return Err(
@@ -499,12 +506,12 @@ where
                 };
 
                 if expand_items {
-                    read_positional_items_placeholder(
+                    empty_expansion = !read_positional_items_placeholder(
                         &mut val, ch, col, is_stdin, args, stdin,
                     )?;
                     expand_items = false;
                 } else if expand_pairs {
-                    read_positional_pairs_placeholder(
+                    empty_expansion = !read_positional_pairs_placeholder(
                         &mut val, ch, col, is_stdin, args, stdin,
                     )?;
                     expand_pairs = false;
@@ -512,6 +519,7 @@ where
                     read_positional_placeholder(
                         &mut val, ch, col, is_stdin, args, stdin,
                     )?;
+                    empty_expansion = false;
                 }
                 is_stdin = false;
                 last_char = None;
@@ -532,6 +540,7 @@ where
                 expand_items = false;
                 expand_pairs = false;
                 is_stdin = false;
+                empty_expansion = false;
             }
         }
     }
