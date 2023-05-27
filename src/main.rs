@@ -1,6 +1,3 @@
-#[cfg(test)]
-mod tests;
-
 fn main() {
     let args = std::env::args().skip(1).map(Into::into);
 

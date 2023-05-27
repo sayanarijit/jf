@@ -1,3 +1,4 @@
+use crate as jf;
 use serde_json as json;
 use std::borrow::Cow;
 use std::io;
@@ -36,7 +37,7 @@ fn test_format_from_stdin() {
         .into_iter()
         .enumerate();
 
-    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    let (res, _, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
     assert_eq!(res, r#"{"one": 1, "two": 2, "three": 3}"#);
 
     let mut chars =
@@ -52,7 +53,7 @@ fn test_format_from_stdin() {
 
     let mut args = ["1", "true", "bar"].map(Cow::from).into_iter().enumerate();
 
-    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    let (res, _, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
     assert_eq!(
         res,
         r#"{"1": 1, one: "1", "true": true, truestr: "true", foo: foo, bar: "bar", esc: "%"}"#
@@ -71,7 +72,7 @@ fn test_format_expand_items_from_stdin() {
 
     let mut args = ["2", "false", "bar"].map(Cow::from).into_iter().enumerate();
 
-    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    let (res, _, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
     assert_eq!(res, r#"[start, 1,true,foo, mid, 2,false,bar, end]"#);
 }
 
@@ -87,7 +88,7 @@ fn test_format_expand_pairs_from_stdin() {
 
     let mut args = ["three", "3"].map(Cow::from).into_iter().enumerate();
 
-    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    let (res, _, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
     assert_eq!(
         res,
         r#"{args: {"three":"3"}, stdin: {"one":"1","two":"2"}}"#
@@ -177,7 +178,7 @@ fn test_format_named_from_stdin() {
         .enumerate();
     let mut args = ["FOO@-", "BAR@-"].map(Cow::from).into_iter().enumerate();
 
-    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    let (res, _, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
 
     assert_eq!(res, r#"{"foo": "bar"}"#);
 }
@@ -217,7 +218,7 @@ fn test_format_named_with_default_from_stdin() {
         .into_iter()
         .enumerate();
 
-    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    let (res, _, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
     assert_eq!(res, r#""foo""#);
 
     let mut chars = "%(foo@-)q".chars().enumerate();
@@ -228,7 +229,7 @@ fn test_format_named_with_default_from_stdin() {
         .map(io::Result::Ok)
         .into_iter()
         .enumerate();
-    let (res, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
+    let (res, _, _) = jf::format_partial(&mut chars, &mut args, &mut stdin).unwrap();
     assert_eq!(res, r#""bar""#);
 }
 
@@ -329,6 +330,30 @@ fn test_format_named_pairs() {
     assert_eq!(
         jf::format(args).unwrap(),
         r#"{"foo":"one","bar":"three","one":1,"two":2,"three":"3","four":"4"}"#
+    );
+}
+
+#[test]
+fn test_raw_mode() {
+    let args = ["%R%*s", "1", "2", "3"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), "1,2,3");
+
+    let args = ["%R%s   %q, (%s)", "1", "2", "3"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"1   "2", (3)"#);
+}
+
+#[test]
+fn test_yaml_mode() {
+    let args = ["%Y{a: b, c: d, e: [f, g]}"].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), "a: b\nc: d\ne:\n- f\n- g\n");
+}
+
+#[test]
+fn test_pretty_json_mode() {
+    let args = ["%J{a: b, c: d, e: [f, g]}"].map(Into::into);
+    assert_eq!(
+        jf::format(args).unwrap(),
+        "{\n  \"a\": \"b\",\n  \"c\": \"d\",\n  \"e\": [\n    \"f\",\n    \"g\"\n  ]\n}"
     );
 }
 
@@ -676,14 +701,14 @@ fn test_usage_example() {
 #[test]
 fn test_print_version() {
     let arg = ["jf v%v"].map(Into::into);
-    assert_eq!(jf::format(arg).unwrap(), r#""jf v0.4.1""#);
+    assert_eq!(jf::format(arg).unwrap(), r#""jf v0.4.2""#);
 
     let args =
         ["{foo: %q, bar: %(bar)q, version: %v}", "foo", "bar=bar"].map(Into::into);
 
     assert_eq!(
         jf::format(args).unwrap(),
-        r#"{"foo":"foo","bar":"bar","version":"0.4.1"}"#
+        r#"{"foo":"foo","bar":"bar","version":"0.4.2"}"#
     );
 }
 

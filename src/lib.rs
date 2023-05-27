@@ -436,16 +436,25 @@ where
     Ok(was_expanded)
 }
 
-pub fn format_partial<'a, C, A, S>(
+#[derive(Debug)]
+enum Mode {
+    Json,
+    Raw,
+    Yaml,
+    PrettyJson,
+}
+
+fn format_partial<'a, C, A, S>(
     chars: &mut C,
     args: &mut A,
     stdin: &mut S,
-) -> Result<(String, Option<char>), Error>
+) -> Result<(String, Option<char>, Mode), Error>
 where
     C: Iterator<Item = (usize, char)>,
     A: Iterator<Item = (usize, Cow<'a, str>)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
 {
+    let mut mode = Mode::Json;
     let mut val = "".to_string();
     let mut last_char = None;
     let mut is_reading_named_values = false;
@@ -465,6 +474,18 @@ where
             }
             ('v', Some('%')) => {
                 val.push_str(VERSION);
+                last_char = None;
+            }
+            ('R', Some('%')) => {
+                mode = Mode::Raw;
+                last_char = None;
+            }
+            ('Y', Some('%')) => {
+                mode = Mode::Yaml;
+                last_char = None;
+            }
+            ('J', Some('%')) => {
+                mode = Mode::PrettyJson;
                 last_char = None;
             }
             ('%', _) => {
@@ -545,7 +566,7 @@ where
         }
     }
 
-    Ok((val, last_char))
+    Ok((val, last_char, mode))
 }
 
 /// Format a string using the given arguments.
@@ -561,7 +582,7 @@ where
     let mut chars = format.chars().enumerate();
     let mut stdin = io::stdin().lock().split(b'\0').enumerate();
 
-    let (val, last_char) = format_partial(&mut chars, &mut args, &mut stdin)?;
+    let (val, last_char, mode) = format_partial(&mut chars, &mut args, &mut stdin)?;
 
     if last_char == Some('%') {
         return Err("template ended with incomplete placeholder".into());
@@ -573,6 +594,19 @@ where
         );
     };
 
-    let val: yaml::Value = yaml::from_str(&val).map_err(Error::from)?;
-    json::to_string(&val).map_err(Error::from)
+    match mode {
+        Mode::Raw => Ok(val),
+        Mode::Yaml => yaml::from_str::<yaml::Value>(&val)
+            .and_then(|y| yaml::to_string(&y))
+            .map_err(Error::from),
+        Mode::Json => yaml::from_str::<yaml::Value>(&val)
+            .map_err(Error::from)
+            .and_then(|y| json::to_string(&y).map_err(Error::from)),
+        Mode::PrettyJson => yaml::from_str::<yaml::Value>(&val)
+            .map_err(Error::from)
+            .and_then(|y| json::to_string_pretty(&y).map_err(Error::from)),
+    }
 }
+
+#[cfg(test)]
+mod tests;
