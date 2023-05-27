@@ -2,7 +2,7 @@
 .TH jf  "1" "" ""
 .SH USAGE
 
-jf TEMPLATE [VALUE]\.\.\. [NAME=VALUE]\.\.\.
+jf TEMPLATE [VALUE]\.\.\. [NAME=VALUE]\.\.\. [NAME@FILE]\.\.\.
 .PP
 Where TEMPLATE may contain the following placeholders:
 .TP
@@ -22,25 +22,37 @@ the `jf` version number
 `%%`
 a literal `%` character
 .PP
-And [VALUE]\.\.\. [NAME=VALUE]\.\.\. are the values for the placeholders.
+And [VALUE]\.\.\. [NAME=VALUE]\.\.\. [NAME@FILE]\.\.\. are the values for the placeholders.
 .SH SYNTAX
 
 .TP
 .B
 `%s`
-`%q`                posiitonal placeholder
+`%q`                read positional argument
+.TP
+.B
+`%\fB-s\fP`
+`%\fB-q\fP`               read stdin
 .TP
 .B
 `%(NAME)s`
-`%(NAME)q`          named placeholder
+`%(NAME)q`          read named value from argument
 .TP
 .B
 `%(NAME=DEFAULT)s`
 `%(NAME=DEFAULT)q`  placeholder with default value
 .TP
 .B
+`%(NAME@FILE)s`
+`%(NAME@FILE)q`     read default value from file path
+.TP
+.B
+`%(NAME@-)s`
+`%(NAME@-)q`        read default value from stdin
+.TP
+.B
 `%(NAME?)s`
-`%(NAME?)q`         nullable placeholder that defaults to `null`
+`%(NAME?)q`         nullable placeholder that defaults to null
 .TP
 .B
 `%(NAME)?s`
@@ -48,29 +60,41 @@ And [VALUE]\.\.\. [NAME=VALUE]\.\.\. are the values for the placeholders.
 .TP
 .B
 `%*s`
-`%*q`               expand positional values as array items
+`%*q`               expand positional args as array items
+.TP
+.B
+`%*\fB-s\fP`
+`%*\fB-q\fP`              expand stdin as array items
 .TP
 .B
 `%**s`
-`%**q`              expand positional values as key value pairs
+`%**q`              expand positional args as key value pairs
+.TP
+.B
+`%**\fB-s\fP`
+`%**\fB-q\fP`             expand stdin as key value pairs
 .TP
 .B
 `%(NAME)*s`
-`%(NAME)*q`         expand named values as array items
+`%(NAME)*q`         expand named args as array items
 .TP
 .B
 `%(NAME)**s`
-`%(NAME)**q`        expand named values as key value pairs
+`%(NAME)**q`        expand named args as key value pairs
 .SH RULES
 
 .IP \(bu 3
 Pass values for positional placeholders in the same order as in the template.
+.IP \(bu 3
+Pass values to stdin following the order and separate them with null byte (`\0`).
 .IP \(bu 3
 Pass values for named placeholders using `NAME=VALUE` syntax.
 .IP \(bu 3
 Pass values for named array items using `NAME=ITEM_N` syntax.
 .IP \(bu 3
 Pass values for named key value pairs using `NAME=KEY_N NAME=VALUE_N` syntax.
+.IP \(bu 3
+Use `NAME@FILE` syntax to read from file where FILE can be `-` for stdin.
 .IP \(bu 3
 Do not declare or pass positional placeholders or values after named ones.
 .IP \(bu 3
@@ -86,13 +110,13 @@ Run: jf %q 1
 .IP \(bu 3
 Out: "1"
 .IP \(bu 3
-Run: jf [%*s] 1 2 3
-.IP \(bu 3
-Out: [1,2,3]
-.IP \(bu 3
-Run: jf {%**q} one 1 two 2 three 3
+Run: jf '{%**q}' one 1 two 2 three 3
 .IP \(bu 3
 Out: {"one":"1","two":"2","three":"3"}
+.IP \(bu 3
+Run: seq 1 3 | xargs printf '%s\0' | jf '[%*\fB-s\fP]'
+.IP \(bu 3
+Out: [1,2,3]
 .IP \(bu 3
 Run: jf "{%q: %(value=default)q, %(bar)**q}" foo value=bar bar=biz bar=baz
 .IP \(bu 3
