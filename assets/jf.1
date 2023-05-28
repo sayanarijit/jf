@@ -7,16 +7,24 @@ jf [OPTION]\.\.\. [--] TEMPLATE [VALUE]\.\.\. [NAME=VALUE]\.\.\. [NAME@FILE]\.\.
 
 .TP
 .B
+-
+pass template via stdin
+.TP
+.B
+--
+stop parsing CLI options
+.TP
+.B
 \fB-r\fP, \fB--raw\fP
-output the raw rendered value without formatting
+print the raw rendered value without formatting
 .TP
 .B
 \fB-p\fP, \fB--pretty\fP
-pretty print the output
+pretty print the JSON formatted output
 .TP
 .B
 \fB-y\fP, \fB--yaml\fP
-output as YAML instead of JSON
+print the output as YAML instead of JSON
 .TP
 .B
 \fB-h\fP, \fB--help\fP
@@ -25,10 +33,6 @@ print this help message
 .B
 \fB-v\fP, \fB--version\fP
 print the version number
-.TP
-.B
---
-stop parsing options
 .SH TEMPLATE
 
 A template is a string that should render into valid YAML. It can contain the
