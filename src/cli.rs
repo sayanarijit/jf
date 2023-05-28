@@ -62,14 +62,14 @@ impl Cli {
 
     pub fn process(self) -> Result<String, jf::Error> {
         match self {
-            Cli::Help => Ok(jf::USAGE.into()),
-            Cli::Version => Ok(format!("jf {VERSION}")),
-            Cli::Format(Format::Raw, args) => jf::render(args.map(Into::into)),
-            Cli::Format(Format::Json, args) => jf::format(args.map(Into::into)),
-            Cli::Format(Format::PrettyJson, args) => {
+            Self::Help => Ok(jf::USAGE.into()),
+            Self::Version => Ok(format!("jf {VERSION}")),
+            Self::Format(Format::Raw, args) => jf::render(args.map(Into::into)),
+            Self::Format(Format::Json, args) => jf::format(args.map(Into::into)),
+            Self::Format(Format::PrettyJson, args) => {
                 jf::format_pretty(args.map(Into::into))
             }
-            Cli::Format(Format::Yaml, args) => jf::format_yaml(args.map(Into::into)),
+            Self::Format(Format::Yaml, args) => jf::format_yaml(args.map(Into::into)),
         }
     }
 }
