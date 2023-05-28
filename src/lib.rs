@@ -5,16 +5,16 @@
 /// To handle also the CLI options, use the `jf::cli` module.
 pub mod cli;
 pub mod error;
+pub use error::{Error, Result};
 pub use serde_json as json;
 pub use serde_yaml as yaml;
 
-use crate::error::{Error, Result};
 use std::io::BufRead;
 use std::{borrow::Cow, collections::HashMap};
 use std::{fs, io};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const USAGE: &str = include_str!("./usage.txt");
+pub const USAGE: &str = include_str!("usage.txt");
 
 fn read_to_string<S>(path: &str, stdin: &mut S) -> Result<String>
 where
