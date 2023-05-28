@@ -1,68 +1,22 @@
+/// This `jf` library can be embedded into other Rust programs.
+/// To use only the templates and values, use one of the
+/// `render` or `format_*` functions.
+///
+/// To handle also the CLI options, use the `jf::cli` module.
+pub mod cli;
+pub mod error;
 pub use serde_json as json;
 pub use serde_yaml as yaml;
+
+use crate::error::{Error, Result};
 use std::io::BufRead;
-use std::{borrow::Cow, collections::HashMap, fmt::Display};
+use std::{borrow::Cow, collections::HashMap};
 use std::{fs, io};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-
 pub const USAGE: &str = include_str!("./usage.txt");
 
-#[derive(Debug)]
-pub enum Error {
-    Json(json::Error),
-    Yaml(yaml::Error),
-    Jf(String),
-    Io(io::Error),
-}
-
-impl Error {
-    pub fn returncode(&self) -> i32 {
-        match self {
-            Self::Jf(_) => 1,
-            Self::Json(_) => 2,
-            Self::Yaml(_) => 3,
-            Self::Io(_) => 4,
-        }
-    }
-}
-
-impl From<yaml::Error> for Error {
-    fn from(v: yaml::Error) -> Self {
-        Self::Yaml(v)
-    }
-}
-
-impl From<json::Error> for Error {
-    fn from(v: json::Error) -> Self {
-        Self::Json(v)
-    }
-}
-
-impl From<&str> for Error {
-    fn from(v: &str) -> Self {
-        Self::Jf(v.to_string())
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(v: io::Error) -> Self {
-        Self::Io(v)
-    }
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Json(e) => write!(f, "json: {e}"),
-            Self::Yaml(e) => write!(f, "yaml: {e}"),
-            Self::Jf(e) => write!(f, "jf: {e}"),
-            Self::Io(e) => write!(f, "io: {e}"),
-        }
-    }
-}
-
-fn read_to_string<S>(path: &str, stdin: &mut S) -> Result<String, Error>
+fn read_to_string<S>(path: &str, stdin: &mut S) -> Result<String>
 where
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
 {
@@ -117,7 +71,7 @@ fn read_named_placeholder<C, S>(
     chars: &mut C,
     named_values: &HashMap<String, Vec<String>>,
     stdin: &mut S,
-) -> Result<bool, Error>
+) -> Result<bool>
 where
     C: Iterator<Item = (usize, char)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
@@ -273,7 +227,7 @@ fn collect_named_values<'a, A, S>(
     args: &mut A,
     stdin: &mut S,
     named_values: &mut HashMap<String, Vec<String>>,
-) -> Result<(), Error>
+) -> Result<()>
 where
     A: Iterator<Item = (usize, Cow<'a, str>)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
@@ -306,7 +260,7 @@ fn read<'a, A, S>(
     col: usize,
     args: &mut A,
     stdin: &mut S,
-) -> Result<(usize, String), Error>
+) -> Result<(usize, String)>
 where
     A: Iterator<Item = (usize, Cow<'a, str>)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
@@ -339,7 +293,7 @@ fn read_positional_placeholder<'a, A, S>(
     is_stdin: bool,
     args: &mut A,
     stdin: &mut S,
-) -> Result<(), Error>
+) -> Result<()>
 where
     A: Iterator<Item = (usize, Cow<'a, str>)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
@@ -361,7 +315,7 @@ fn read_positional_items_placeholder<'a, A, S>(
     is_stdin: bool,
     args: &mut A,
     stdin: &mut S,
-) -> Result<bool, Error>
+) -> Result<bool>
 where
     A: Iterator<Item = (usize, Cow<'a, str>)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
@@ -391,7 +345,7 @@ fn read_positional_pairs_placeholder<'a, A, S>(
     is_stdin: bool,
     args: &mut A,
     stdin: &mut S,
-) -> Result<bool, Error>
+) -> Result<bool>
 where
     A: Iterator<Item = (usize, Cow<'a, str>)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
@@ -433,7 +387,7 @@ fn format_partial<'a, C, A, S>(
     chars: &mut C,
     args: &mut A,
     stdin: &mut S,
-) -> Result<(String, Option<char>), Error>
+) -> Result<(String, Option<char>)>
 where
     C: Iterator<Item = (usize, char)>,
     A: Iterator<Item = (usize, Cow<'a, str>)>,
@@ -537,8 +491,8 @@ where
     Ok((val, last_char))
 }
 
-/// Render the template using the given arguments.
-pub fn render<'a, I>(args: I) -> Result<String, Error>
+/// Render the template into raw string using the given arguments.
+pub fn render<'a, I>(args: I) -> Result<String>
 where
     I: IntoIterator<Item = Cow<'a, str>>,
 {
@@ -566,7 +520,7 @@ where
 }
 
 /// Render and format the template into JSON.
-pub fn format<'a, I>(args: I) -> Result<String, Error>
+pub fn format<'a, I>(args: I) -> Result<String>
 where
     I: IntoIterator<Item = Cow<'a, str>>,
 {
@@ -576,7 +530,7 @@ where
 }
 
 /// Render and format the template into pretty JSON.
-pub fn format_pretty<'a, I>(args: I) -> Result<String, Error>
+pub fn format_pretty<'a, I>(args: I) -> Result<String>
 where
     I: IntoIterator<Item = Cow<'a, str>>,
 {
@@ -586,7 +540,7 @@ where
 }
 
 /// Render and format the template into value JSON using the given arguments.
-pub fn format_yaml<'a, I>(args: I) -> Result<String, Error>
+pub fn format_yaml<'a, I>(args: I) -> Result<String>
 where
     I: IntoIterator<Item = Cow<'a, str>>,
 {

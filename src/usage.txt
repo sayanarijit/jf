@@ -4,12 +4,13 @@ USAGE
 
 OPTIONS
 
-  -r, --raw      output the raw rendered value without formatting
-  -p, --pretty   pretty print the output
-  -y, --yaml     output as YAML instead of JSON
+  -              pass template via stdin
+  --             stop parsing CLI options
+  -r, --raw      print the raw rendered value without formatting
+  -p, --pretty   pretty print the JSON formatted output
+  -y, --yaml     print the output as YAML instead of JSON
   -h, --help     print this help message
   -v, --version  print the version number
-  --             stop parsing options
 
 TEMPLATE
 
