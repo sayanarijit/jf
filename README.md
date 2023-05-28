@@ -43,25 +43,25 @@ nix-env -f https://github.com/NixOS/nixpkgs/tarball/nixos-unstable -iA jf
 ### USAGE
 
 ```bash
-jf [OPTION]... [--] TEMPLATE [VALUE]... [NAME=VALUE]... [NAME@FILE]...
+  jf [OPTION]... [--] TEMPLATE [VALUE]... [NAME=VALUE]... [NAME@FILE]...
 ```
 
 ### OPTIONS
 
-| option        | help                                            |
-| ------------- | ----------------------------------------------- |
-| -             | pass template via stdin                         |
-| --            | stop parsing CLI options                        |
-| -r, --raw     | print the raw rendered value without formatting |
-| -p, --pretty  | pretty print the JSON formatted output          |
-| -y, --yaml    | print the output as YAML instead of JSON        |
-| -h, --help    | print this help message                         |
-| -v, --version | print the version number                        |
+| option        | help                                               |
+| ------------- | -------------------------------------------------- |
+| -             | alias for `-f -`, i.e. read template from stdin    |
+| --            | stop parsing CLI options                           |
+| -r, --raw     | print the raw rendered value without formatting    |
+| -p, --pretty  | pretty print the JSON formatted output             |
+| -y, --yaml    | print the output as YAML instead of JSON           |
+| -h, --help    | print this help message                            |
+| -v, --version | print the version number                           |
+| -f, --file    | treat the template argument as a file to read from |
 
 ### TEMPLATE
 
-A template is a string that should render into valid YAML. It can contain the
-following placeholders:
+Template should render into valid YAML. It can contain the following placeholders:
 
 - `%%` a literal `%` character
 - `%s` `%q` read positional argument

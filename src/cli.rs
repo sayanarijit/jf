@@ -1,8 +1,8 @@
 use crate as jf;
 use crate::VERSION;
 use std::env::Args;
-use std::io;
-use std::iter::{Peekable, Skip};
+use std::iter::Skip;
+use std::{fs, io};
 
 #[derive(Debug)]
 pub enum Format {
@@ -16,36 +16,38 @@ pub enum Format {
 pub enum Cli {
     Help,
     Version,
-    Format(Format, Peekable<Skip<Args>>),
+    Format(Format, Option<String>, Skip<Args>),
 }
 
 impl Cli {
-    pub fn parse() -> Result<Self, jf::Error> {
+    pub fn parse() -> jf::Result<Self> {
         let mut format = Format::Json;
-        let mut args = std::env::args().skip(1).peekable();
+        let mut template: Option<String> = None;
+        let mut args = std::env::args().skip(1);
+        let mut is_file = false;
 
-        while let Some(arg) = args.peek_mut() {
+        while let Some(arg) = args.next() {
             match arg.as_str() {
                 "-h" | "--help" => return Ok(Self::Help),
                 "-v" | "--version" => return Ok(Self::Version),
                 "-r" | "--raw" => {
                     format = Format::Raw;
-                    args.next();
                 }
                 "-p" | "--pretty" => {
                     format = Format::PrettyJson;
-                    args.next();
                 }
                 "-y" | "--yaml" => {
                     format = Format::Yaml;
-                    args.next();
+                }
+                "-f" | "--file" => {
+                    is_file = true;
                 }
                 "-" => {
-                    *arg = io::read_to_string(io::stdin().lock())?;
+                    is_file = false;
+                    template = Some(io::read_to_string(io::stdin().lock())?);
                     break;
                 }
                 "--" => {
-                    args.next();
                     break;
                 }
                 a if a.starts_with('-') => {
@@ -53,23 +55,42 @@ impl Cli {
                         .as_str()
                         .into())
                 }
-                _ => break,
+                _ => {
+                    template = Some(arg);
+                    break;
+                }
             }
         }
 
-        Ok(Self::Format(format, args))
+        if template.is_none() {
+            template = args.next()
+        }
+
+        if is_file {
+            if let Some(tmpl) = template.as_mut() {
+                *tmpl = fs::read_to_string(&tmpl)?;
+            }
+        }
+
+        Ok(Self::Format(format, template, args))
     }
 
     pub fn process(self) -> Result<String, jf::Error> {
         match self {
             Self::Help => Ok(jf::USAGE.into()),
             Self::Version => Ok(format!("jf {VERSION}")),
-            Self::Format(Format::Raw, args) => jf::render(args.map(Into::into)),
-            Self::Format(Format::Json, args) => jf::format(args.map(Into::into)),
-            Self::Format(Format::PrettyJson, args) => {
-                jf::format_pretty(args.map(Into::into))
+            Self::Format(Format::Raw, template, args) => {
+                jf::render(template.iter().map(Into::into).chain(args.map(Into::into)))
             }
-            Self::Format(Format::Yaml, args) => jf::format_yaml(args.map(Into::into)),
+            Self::Format(Format::Json, template, args) => {
+                jf::format(template.iter().map(Into::into).chain(args.map(Into::into)))
+            }
+            Self::Format(Format::PrettyJson, template, args) => jf::format_pretty(
+                template.iter().map(Into::into).chain(args.map(Into::into)),
+            ),
+            Self::Format(Format::Yaml, template, args) => jf::format_yaml(
+                template.iter().map(Into::into).chain(args.map(Into::into)),
+            ),
         }
     }
 }
