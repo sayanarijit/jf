@@ -531,11 +531,11 @@ fn test_json_error() {
 
 #[test]
 fn test_io_error() {
-    let args = ["%(devnull@/usr/bin/env)q"].map(Into::into);
+    let args = ["%(devnull@foobar)q"].map(Into::into);
 
     assert_eq!(
         jf::format(args).unwrap_err().to_string(),
-        "io: stream did not contain valid UTF-8",
+        "io: No such file or directory (os error 2)"
     )
 }
 
