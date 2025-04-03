@@ -66,7 +66,7 @@ where
     val
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 enum Expansion {
     None,
     Items,
