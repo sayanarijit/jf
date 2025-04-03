@@ -66,6 +66,23 @@ where
     val
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum Expansion {
+    None,
+    Items,
+    Pairs,
+}
+
+impl Expansion {
+    fn stars(&self) -> &'static str {
+        match self {
+            Expansion::None => "",
+            Expansion::Items => "*",
+            Expansion::Pairs => "**",
+        }
+    }
+}
+
 fn read_named_placeholder<C, S>(
     val: &mut String,
     chars: &mut C,
@@ -83,8 +100,7 @@ where
     let mut default_value: Option<String> = None;
     let mut is_optional = false;
     let mut is_nullable = false;
-    let mut expand_items = false;
-    let mut expand_pairs = false;
+    let mut expansion = Expansion::None;
     let mut empty_expansion = false;
 
     loop {
@@ -122,13 +138,11 @@ where
                 }
             }
             ('*', Some(')')) => {
-                expand_items = true;
-                expand_pairs = false;
+                expansion = Expansion::Items;
                 last_char = Some(ch);
             }
             ('*', Some('*')) => {
-                expand_pairs = true;
-                expand_items = false;
+                expansion = Expansion::Pairs;
                 last_char = Some(ch);
             }
             (ch, Some(')')) if ch == 'q' || ch == 's' => {
@@ -179,16 +193,20 @@ where
                     .map(Into::into)
                     .enumerate();
 
-                if expand_pairs {
-                    empty_expansion = !read_positional_pairs_placeholder(
-                        val, ch, col, false, &mut args, stdin,
-                    )?;
-                } else if expand_items {
-                    empty_expansion = !read_positional_items_placeholder(
-                        val, ch, col, false, &mut args, stdin,
-                    )?;
-                } else {
-                    unreachable!();
+                match expansion {
+                    Expansion::Items => {
+                        empty_expansion = !read_positional_items_placeholder(
+                            val, ch, col, false, &mut args, stdin,
+                        )?;
+                    }
+                    Expansion::Pairs => {
+                        empty_expansion = !read_positional_pairs_placeholder(
+                            val, ch, col, false, &mut args, stdin,
+                        )?;
+                    }
+                    Expansion::None => {
+                        unreachable!();
+                    }
                 }
                 break;
             }
@@ -197,13 +215,7 @@ where
                 last_char = None;
             }
             (_, Some(')')) | (_, Some('*')) => {
-                let stars = if expand_items {
-                    "*"
-                } else if expand_pairs {
-                    "**"
-                } else {
-                    ""
-                };
+                let stars = expansion.stars();
                 return Err(
                     format!("invalid named placeholder '%({name}){stars}{ch}' at column {col}, use '%({name}){stars}q' for quoted strings and '%({name}){stars}s' for other values")
                     .as_str()
@@ -397,8 +409,7 @@ where
     let mut last_char = None;
     let mut is_reading_named_values = false;
     let mut named_values = HashMap::<String, Vec<String>>::new();
-    let mut expand_items = false;
-    let mut expand_pairs = false;
+    let mut expansion = Expansion::None;
     let mut is_stdin = false;
     let mut empty_expansion = false;
 
@@ -422,13 +433,12 @@ where
                     read_named_placeholder(&mut val, chars, &named_values, stdin)?;
                 last_char = None;
             }
-            ('*', Some('%')) if !expand_items && !expand_pairs => {
-                expand_items = true;
+            ('*', Some('%')) if expansion == Expansion::None => {
+                expansion = Expansion::Items;
                 last_char = Some('%');
             }
-            ('*', Some('%')) if expand_items && !expand_pairs => {
-                expand_items = false;
-                expand_pairs = true;
+            ('*', Some('%')) if expansion == Expansion::Items => {
+                expansion = Expansion::Pairs;
                 last_char = Some('%');
             }
             ('-', Some('%')) => {
@@ -448,40 +458,37 @@ where
                     );
                 };
 
-                if expand_items {
-                    empty_expansion = !read_positional_items_placeholder(
-                        &mut val, ch, col, is_stdin, args, stdin,
-                    )?;
-                    expand_items = false;
-                } else if expand_pairs {
-                    empty_expansion = !read_positional_pairs_placeholder(
-                        &mut val, ch, col, is_stdin, args, stdin,
-                    )?;
-                    expand_pairs = false;
-                } else {
-                    read_positional_placeholder(
-                        &mut val, ch, col, is_stdin, args, stdin,
-                    )?;
-                    empty_expansion = false;
+                match expansion {
+                    Expansion::Items => {
+                        empty_expansion = !read_positional_items_placeholder(
+                            &mut val, ch, col, is_stdin, args, stdin,
+                        )?;
+                        expansion = Expansion::None;
+                    }
+                    Expansion::Pairs => {
+                        empty_expansion = !read_positional_pairs_placeholder(
+                            &mut val, ch, col, is_stdin, args, stdin,
+                        )?;
+                        expansion = Expansion::None;
+                    }
+                    Expansion::None => {
+                        read_positional_placeholder(
+                            &mut val, ch, col, is_stdin, args, stdin,
+                        )?;
+                        empty_expansion = false;
+                    }
                 }
                 is_stdin = false;
                 last_char = None;
             }
             (_, Some('%')) => {
-                let stars = if expand_items {
-                    "*"
-                } else if expand_pairs {
-                    "**"
-                } else {
-                    ""
-                };
+                let stars = expansion.stars();
                 return Err(format!("invalid placeholder '%{stars}{ch}' at column {col}, use one of '%{stars}s' or '%{stars}q', or escape it using '%%'").as_str().into());
             }
             (_, _) => {
                 val.push(ch);
                 last_char = None;
-                expand_items = false;
-                expand_pairs = false;
+                expansion = Expansion::None;
                 is_stdin = false;
                 empty_expansion = false;
             }
