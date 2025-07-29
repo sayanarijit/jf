@@ -18,6 +18,12 @@ jf "{one: %s, two: %q, three: [%(four)s, %(five=5)q]}" 1 2 four=4
 
 ### INSTALL
 
+#### Homebrew (3rd party)
+
+```bash
+brew install gromgit/tools/jf
+```
+
 #### [Cargo][cargo]
 
 As a CLI tool
