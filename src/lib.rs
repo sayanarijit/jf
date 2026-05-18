@@ -39,8 +39,6 @@ fn read_brace_value<C>(chars: &mut C) -> String
 where
     C: Iterator<Item = (usize, char)>,
 {
-    // Reading a default value for a named placeholder
-
     let mut last_char = None;
     let mut val = String::new();
 
@@ -93,8 +91,6 @@ where
     C: Iterator<Item = (usize, char)>,
     S: Iterator<Item = (usize, io::Result<Vec<u8>>)>,
 {
-    // Reading a named placeholder
-
     let mut last_char = None;
     let mut name = "".to_string();
     let mut default_value: Option<String> = None;
@@ -134,7 +130,7 @@ where
                 is_nullable = true;
                 last_char = chars.next().map(|(_, ch)| ch);
                 if last_char != Some(')') {
-                    return Err(format!("nullable placeholder '{name}' at column {col} must end with '?)'", col = col).as_str().into());
+                    return Err(format!("nullable placeholder '{name}' at column {col} must end with '?)'").as_str().into());
                 }
             }
             ('*', Some(')')) => {
@@ -414,8 +410,6 @@ where
     let mut empty_expansion = false;
 
     while let Some((col, ch)) = chars.next() {
-        // Reading a named placeholder
-        // Not reading a named placeholder
         match (ch, last_char) {
             ('%', Some('%')) => {
                 val.push(ch);
@@ -498,10 +492,11 @@ where
     Ok((val, last_char))
 }
 
-/// Render the template into raw string using the given arguments.
-pub fn render<'a, I>(args: I) -> Result<String>
+/// Render the template into a raw string using the given arguments.
+fn render_with_stdin<'a, I, SI>(args: I, stdin: SI) -> Result<String>
 where
     I: IntoIterator<Item = Cow<'a, str>>,
+    SI: IntoIterator<Item = io::Result<Vec<u8>>>,
 {
     let mut args = args.into_iter().enumerate();
     let Some((_, format)) = args.next() else {
@@ -509,7 +504,7 @@ where
     };
 
     let mut chars = format.chars().enumerate();
-    let mut stdin = io::stdin().lock().split(b'\0').enumerate();
+    let mut stdin = stdin.into_iter().enumerate();
 
     let (val, last_char) = format_partial(&mut chars, &mut args, &mut stdin)?;
 
@@ -526,14 +521,30 @@ where
     Ok(val)
 }
 
+/// Render the template into a raw string using the given arguments.
+pub fn render<'a, I>(args: I) -> Result<String>
+where
+    I: IntoIterator<Item = Cow<'a, str>>,
+{
+    render_with_stdin(args, io::stdin().lock().split(b'\0'))
+}
+
+fn format_with_stdin<'a, I, SI>(args: I, stdin: SI) -> Result<String>
+where
+    I: IntoIterator<Item = Cow<'a, str>>,
+    SI: IntoIterator<Item = io::Result<Vec<u8>>>,
+{
+    let val = render_with_stdin(args, stdin)?;
+    let yaml: yaml::Value = yaml::from_str(&val).map_err(Error::from)?;
+    json::to_string(&yaml).map_err(Error::from)
+}
+
 /// Render and format the template into JSON.
 pub fn format<'a, I>(args: I) -> Result<String>
 where
     I: IntoIterator<Item = Cow<'a, str>>,
 {
-    let val = render(args)?;
-    let yaml: yaml::Value = yaml::from_str(&val).map_err(Error::from)?;
-    json::to_string(&yaml).map_err(Error::from)
+    format_with_stdin(args, io::stdin().lock().split(b'\0'))
 }
 
 /// Render and format the template into pretty JSON.
@@ -546,7 +557,7 @@ where
     json::to_string_pretty(&yaml).map_err(Error::from)
 }
 
-/// Render and format the template into value JSON using the given arguments.
+/// Render and format the template into YAML using the given arguments.
 pub fn format_yaml<'a, I>(args: I) -> Result<String>
 where
     I: IntoIterator<Item = Cow<'a, str>>,
@@ -558,3 +569,5 @@ where
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod fuzz_tests;

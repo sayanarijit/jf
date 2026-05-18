@@ -247,6 +247,29 @@ fn test_unexpected_eof() {
 }
 
 #[test]
+fn test_unexpected_eof_from_positional_stdin() {
+    let err = jf::render_with_stdin(["%-s"].map(Into::into), std::iter::empty())
+        .unwrap_err()
+        .to_string();
+
+    assert_eq!(err, "jf: placeholder missing value at column 2");
+}
+
+#[test]
+fn test_unexpected_eof_from_stdin_pairs() {
+    let err = jf::render_with_stdin(
+        ["{%**-q}", "unused"].into_iter().map(Into::into),
+        ["key"]
+            .map(Into::into)
+            .map(io::Result::Ok),
+    )
+    .unwrap_err()
+    .to_string();
+
+    assert_eq!(err, "jf: placeholder missing value at column 5");
+}
+
+#[test]
 fn test_format_optional() {
     let args = [r#"{foo: %(foo)?q, bar: %(bar)?q}"#, "foo=foo"].map(Into::into);
     assert_eq!(jf::format(args).unwrap(), r#"{"foo":"foo","bar":null}"#);
