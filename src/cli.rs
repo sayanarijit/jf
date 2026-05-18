@@ -26,7 +26,7 @@ impl Cli {
         let mut args = std::env::args().skip(1);
         let mut is_file = false;
 
-        while let Some(arg) = args.next() {
+        for arg in args.by_ref() {
             match arg.as_str() {
                 "-h" | "--help" => return Ok(Self::Help),
                 "-v" | "--version" => return Ok(Self::Version),
@@ -66,11 +66,10 @@ impl Cli {
             template = args.next()
         }
 
-        if is_file {
-            if let Some(tmpl) = template.as_mut() {
+        if is_file
+            && let Some(tmpl) = template.as_mut() {
                 *tmpl = fs::read_to_string(&tmpl)?;
             }
-        }
 
         Ok(Self::Format(format, template, args))
     }
