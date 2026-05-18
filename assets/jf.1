@@ -176,6 +176,6 @@ Run: obj one 1 two 2 three 3
 .IP \(bu 3
 Out: {"one":1,"two":2,"three":3}
 .IP \(bu 3
-Run: obj 1 2 3 $(arr 4 $(str 5))
+Run: obj 1 2 3 "$(arr 4 "$(str 5)")"
 .IP \(bu 3
 Out: {"1":2,"3":[4,"5"]}
