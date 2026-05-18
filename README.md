@@ -1,6 +1,7 @@
 # jf
 
 [![Crate Status](https://img.shields.io/crates/v/jf.svg)](https://crates.io/crates/jf)
+[![Docker Image Version](https://img.shields.io/docker/v/sayanarijit/jf?label=docker)](https://hub.docker.com/r/sayanarijit/jf)
 
 [![Packaging status][repos]][repology]
 
@@ -41,7 +42,7 @@ cargo add jf
 #### [Nixpkgs][nixpkgs]
 
 ```bash
-nix-env -f https://github.com/NixOS/nixpkgs/tarball/nixos-unstable -iA jf
+nix-shell -p jf
 ```
 
 #### [Binaries][bins]
@@ -50,6 +51,13 @@ nix-env -f https://github.com/NixOS/nixpkgs/tarball/nixos-unstable -iA jf
 
 ```bash
 jf [OPTION]... [--] TEMPLATE [VALUE]... [NAME=VALUE]... [NAME@FILE]...
+```
+
+#### Docker
+
+```bash
+docker pull docker.io/sayanarijit/jf
+podman pull quay.io/sayanarijit/jf
 ```
 
 ### OPTIONS
