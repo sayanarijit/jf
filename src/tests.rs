@@ -318,6 +318,21 @@ fn test_format_expand_positional_pairs() {
 }
 
 #[test]
+fn test_format_empty_expansions_in_middle_of_collections() {
+    let args = [r#"[1, %*s, 3]"#].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"[1,3]"#);
+
+    let args = [r#"{a: 1, %**s, c: 3}"#].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"a":1,"c":3}"#);
+
+    let args = [r#"[1, %(foo)*s, 3]"#].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"[1,3]"#);
+
+    let args = [r#"{a: 1, %(foo)**s, c: 3}"#].map(Into::into);
+    assert_eq!(jf::format(args).unwrap(), r#"{"a":1,"c":3}"#);
+}
+
+#[test]
 fn test_format_named_items() {
     let args = [r#"[%(foo)*s]"#].map(Into::into);
     assert_eq!(jf::format(args).unwrap(), r#"[]"#);
@@ -353,6 +368,23 @@ fn test_format_named_pairs() {
     assert_eq!(
         jf::format(args).unwrap(),
         r#"{"foo":"one","bar":"three","one":1,"two":2,"three":"3","four":"4"}"#
+    );
+}
+
+#[test]
+fn test_format_named_defaults_from_stdin_preserve_read_order() {
+    let args = [
+        r#"{from_positional: %-q, from_default: %(name@-)q, from_file: %(other@-)q}"#,
+    ]
+    .map(Into::into);
+
+    let stdin = ["alpha", "beta", "gamma"]
+        .map(Into::into)
+        .map(io::Result::Ok);
+
+    assert_eq!(
+        jf::format_with_stdin(args, stdin).unwrap(),
+        r#"{"from_positional":"alpha","from_default":"beta","from_file":"gamma"}"#
     );
 }
 
@@ -397,6 +429,16 @@ fn test_nullable_placeholder_must_end_with_error() {
     assert_eq!(
         jf::format(args).unwrap_err().to_string(),
         "jf: nullable placeholder 'foo' at column 5 must end with '?)'"
+    );
+}
+
+#[test]
+fn test_optional_placeholder_cannot_also_be_nullable_error() {
+    let args = [r#"%(foo?)?q"#].map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: optional placeholder 'foo' at column 7 cannot also be nullable"
     );
 }
 
@@ -453,6 +495,13 @@ fn test_missing_value_error() {
     assert_eq!(
         jf::format(args).unwrap_err().to_string(),
         "jf: placeholder missing value at column 4"
+    );
+
+    let args = [r#"%(foo)**q"#, "foo=one", "foo=1", "foo=two"].map(Into::into);
+
+    assert_eq!(
+        jf::format(args).unwrap_err().to_string(),
+        "jf: placeholder missing value at column 8"
     );
 }
 

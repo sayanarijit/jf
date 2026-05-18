@@ -1,5 +1,6 @@
 use crate as jf;
 use proptest::prelude::*;
+use serde_json::{self as json, Value};
 use std::borrow::Cow;
 use std::io;
 
@@ -19,6 +20,10 @@ fn into_named_args(values: Vec<String>) -> Vec<String> {
         .enumerate()
         .map(|(index, value)| format!("name{index}={value}"))
         .collect()
+}
+
+fn parse_json(value: String) -> Value {
+    json::from_str(&value).expect("valid JSON")
 }
 
 proptest! {
@@ -141,5 +146,97 @@ proptest! {
             .collect();
 
         let _ = jf::format_with_stdin(input, into_stdin(stdin));
+    }
+
+    #[test]
+    fn fuzz_empty_named_item_expansion_in_middle_preserves_neighbors(
+        left in prop::collection::vec("\\PC*", 0..6),
+        right in prop::collection::vec("\\PC*", 0..6)
+    ) {
+        let input: Vec<Cow<str>> = std::iter::once(r#"[%(left)*q, %(middle)*q, %(right)*q]"#.to_string())
+            .chain(left.iter().cloned().map(|value| format!("left={value}")))
+            .chain(right.iter().cloned().map(|value| format!("right={value}")))
+            .map(Cow::from)
+            .collect();
+
+        let actual = parse_json(jf::format(input).unwrap());
+        let expected = Value::Array(
+            left.into_iter()
+                .chain(right.into_iter())
+                .map(Value::String)
+                .collect(),
+        );
+
+        prop_assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn fuzz_empty_named_pair_expansion_in_middle_preserves_neighbors(
+        left in prop::collection::vec("\\PC*", 0..6),
+        right in prop::collection::vec("\\PC*", 0..6)
+    ) {
+        let left_entries: Vec<(String, String)> = left
+            .into_iter()
+            .enumerate()
+            .map(|(index, value)| (format!("left_key_{index}"), value))
+            .collect();
+        let right_entries: Vec<(String, String)> = right
+            .into_iter()
+            .enumerate()
+            .map(|(index, value)| (format!("right_key_{index}"), value))
+            .collect();
+
+        let input: Vec<Cow<str>> = std::iter::once(
+            r#"{%(left)**q, %(middle)**q, %(right)**q}"#.to_string(),
+        )
+        .chain(
+            left_entries
+                .iter()
+                .flat_map(|(key, value)| [format!("left={key}"), format!("left={value}")]),
+        )
+        .chain(
+            right_entries
+                .iter()
+                .flat_map(|(key, value)| [format!("right={key}"), format!("right={value}")]),
+        )
+        .map(Cow::from)
+        .collect();
+
+        let actual = parse_json(jf::format(input).unwrap());
+        let expected = Value::Object(
+            left_entries
+                .into_iter()
+                .chain(right_entries.into_iter())
+                .map(|(key, value)| (key, Value::String(value)))
+                .collect(),
+        );
+
+        prop_assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn fuzz_stdin_defaults_follow_positional_stdin_order(
+        first in "\\PC*",
+        second in "\\PC*",
+        third in "\\PC*"
+    ) {
+        let input: Vec<Cow<str>> = vec![
+            Cow::from(r#"{from_positional: %-q, from_default: %(name@-)q, from_file: %(other@-)q}"#),
+        ];
+
+        let actual = parse_json(
+            jf::format_with_stdin(input, into_stdin(vec![first.clone(), second.clone(), third.clone()]))
+                .unwrap(),
+        );
+        let expected = parse_json(
+            json::json!({
+                "from_positional": first,
+                "from_default": second,
+                "from_file": third,
+            })
+            .to_string(),
+        );
+
+        prop_assert_eq!(actual, expected);
     }
 }
