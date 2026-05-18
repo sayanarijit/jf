@@ -31,6 +31,7 @@ As a CLI tool
 
 ```bash
 cargo install jf
+# cargo binstall jf  # or with cargo-binstall for faster installation
 ```
 
 Or as a library:
@@ -45,19 +46,19 @@ cargo add jf
 nix-shell -p jf
 ```
 
+#### Docker
+
+```bash
+docker pull docker.io/sayanarijit/jf
+podman pull quay.io/sayanarijit/jf
+```
+
 #### [Binaries][bins]
 
 ### USAGE
 
 ```bash
 jf [OPTION]... [--] TEMPLATE [VALUE]... [NAME=VALUE]... [NAME@FILE]...
-```
-
-#### Docker
-
-```bash
-docker pull docker.io/sayanarijit/jf
-podman pull quay.io/sayanarijit/jf
 ```
 
 ### OPTIONS
